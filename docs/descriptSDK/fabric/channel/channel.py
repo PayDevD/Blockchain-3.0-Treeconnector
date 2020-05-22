@@ -51,13 +51,11 @@ class Channel(object):
         채널 객체에 orderer 종단점을 추가
         orderer 노드 하나를 선택하여 orderer 네트워크에 broadcast 요청
         """
-        self._orderers[orderer.endpoint] = orderer
 
     def add_peer(self, peer):
         """
         체인 객체에 peer 종단점을 추가
         """
-        self._peers[peer.endpoint] = peer
 
     def remove_orderer(self, orderer):
         """
@@ -68,8 +66,6 @@ class Channel(object):
         """
         채널 객체에서 peer 종단점을 삭제
         """
-        if peer.endpoint in self._peers:
-            self._peers.pop(peer.endpoint, None)
 
     @property
     def orderers(self):
@@ -78,8 +74,7 @@ class Channel(object):
 
     @property
     def peers(self):
-        return self._peers
-        """체인 상의 peer 노드 목록"""
+        """체인 상의 peer 노드 목록 반환"""
 
     @property
     def is_dev_mode(self):
@@ -117,230 +112,44 @@ class Channel(object):
         """peer 집합의 모든 peer들을 유효성 체크"""
 
     def send_install_proposal(self, tx_context, peers=None):
-        """ Send install chaincode proposal
-        Args:
-            install_proposal_req: install proposal request
-            targets: a set of peer to send
-        Returns: a set of proposal response
-        """
-        if peers is None:
-            targets = self._peers.values()
-        else:
-            targets = peers
-        # self._validate_state() # TODO: enable this later
-        # self._validate_peers(targets)  # TODO: enable this later
-
-        if not tx_context:
-            raise ValueError("InstallProposalRequest is null.")
-
-        cc_deployment_spec = chaincode_pb2.ChaincodeDeploymentSpec()
-        cc_deployment_spec.chaincode_spec.type = \
-            chaincode_pb2.ChaincodeSpec.Type.Value(
-                utils.proto_str(tx_context.tx_prop_req.cc_type))
-        cc_deployment_spec.chaincode_spec.chaincode_id.name = \
-            proto_str(tx_context.tx_prop_req.cc_name)
-        cc_deployment_spec.chaincode_spec.chaincode_id.path = \
-            proto_str(tx_context.tx_prop_req.cc_path)
-        cc_deployment_spec.chaincode_spec.chaincode_id.version = \
-            proto_str(tx_context.tx_prop_req.cc_version)
-        if not self._is_dev_mode:
-            if not tx_context.tx_prop_req.packaged_cc:
-                cc_deployment_spec.code_package = \
-                    package_chaincode(
-                        tx_context.tx_prop_req.cc_path,
-                        tx_context.tx_prop_req.cc_type)
-            else:
-                cc_deployment_spec.code_package = \
-                    tx_context.tx_prop_req.packaged_cc
-
-        channel_header_extension = proposal_pb2.ChaincodeHeaderExtension()
-        channel_header_extension.chaincode_id.name = \
-            proto_str("lscc")
-        channel_header = utils.build_channel_header(
-            common_pb2.ENDORSER_TRANSACTION,
-            tx_context.tx_id,
-            '',
-            utils.current_timestamp(),
-            tx_context.epoch,
-            channel_header_extension.SerializeToString()
-        )
-
-        header = utils.build_header(tx_context.identity,
-                                    channel_header,
-                                    tx_context.nonce)
-
-        cci_spec = chaincode_pb2.ChaincodeInvocationSpec()
-        cci_spec.chaincode_spec.type = \
-            chaincode_pb2.ChaincodeSpec.Type.Value(CC_TYPE_GOLANG)
-        cci_spec.chaincode_spec.chaincode_id.name = proto_str("lscc")
-        cci_spec.chaincode_spec.input.args.extend(
-            [proto_b(CC_INSTALL), cc_deployment_spec.SerializeToString()])
-        proposal = utils.build_cc_proposal(
-            cci_spec, header,
-            tx_context.tx_prop_req.transient_map)
-        signed_proposal = utils.sign_proposal(tx_context, proposal)
-
-        responses = [peer.send_proposal(signed_proposal)
-                     for peer in targets]
-
+        """체인코드 설치 제안을 peer 집합에게 전송하여 응답을 받음"""
         return responses, proposal, header
 
     def _build_channel_header(type, tx_id, channel_id,
                               timestamp, epoch=0, extension=None):
-        """Build channel.
-            extension: extension
-            timestamp: timestamp
-            channel_id: channel id
-            tx_id: transaction id
-            type: type
-            epoch: epoch
-        Returns: common_proto.Header 객체
-        """
+        """채널 헤더를 빌드하여 common_proto.Header 객체 반환"""
 
     def is_readonly(self):
-        """
-        read-only 채널(트랜잭션,상태저장소는 조회만 가능)인지 체크(T/F)
-        """
+        """read-only 채널(트랜잭션,상태저장소는 조회만 가능)인지 체크(T/F)"""
 
     def join_channel(self, request):
         """
-        To join the peer to a channel.
-        Args:
-            request: the request to join a channel
-        Return:
-            A coroutine to handle thanks to asyncio with
-             await asyncio.gather(*responses)
+        peer가 채널에 보내는 join 요청을 받아
+        chaincode_input, chaincode_id, cc_spec, cc_invoke_spec, tx_context
+        를 생성하여 채널 헤더-->트랜잭션 헤더-->join 트랜잭션 제안을 빌드
+        비동기 처리를 위한 coroutine 반환
         """
-        _logger.debug('channel_join - start')
-
-        for key in ['targets', 'block', 'tx_context']:
-            if key not in request:
-                err_msg = "Missing parameter {}".format(key)
-                _logger.error('channel_join error: {}'.format(err_msg))
-                raise ValueError(err_msg)
-
-        chaincode_input = chaincode_pb2.ChaincodeInput()
-        chaincode_input.args.extend([proto_b("JoinChain"), request['block']])
-        chaincode_id = chaincode_pb2.ChaincodeID()
-        chaincode_id.name = proto_str("cscc")
-
-        cc_spec = create_cc_spec(chaincode_input, chaincode_id, 'GOLANG')
-        cc_invoke_spec = chaincode_pb2.ChaincodeInvocationSpec()
-        cc_invoke_spec.chaincode_spec.CopyFrom(cc_spec)
-
-        tx_context = request['tx_context']
-        extension = proposal_pb2.ChaincodeHeaderExtension()
-        extension.chaincode_id.name = proto_str('cscc')
-        channel_header = build_channel_header(
-            common_pb2.HeaderType.Value('ENDORSER_TRANSACTION'),
-            tx_context.tx_id,
-            '',
-            current_timestamp(),
-            tx_context.epoch,
-            extension=extension.SerializeToString())
-
-        header = build_header(tx_context.identity,
-                              channel_header,
-                              tx_context.nonce)
-        proposal = build_cc_proposal(cc_invoke_spec,
-                                     header,
-                                     request['transient_map'])
-
-        return send_transaction_proposal(proposal,
-                                         tx_context,
-                                         request['targets'])
+        return send_transaction_proposal(proposal,tx_context,request['targets'])
 
     def send_instantiate_proposal(self, tx_context, peers):
-        """Send instatiate chaincode proposal.
-
-        Args:
-            tx_context: transaction context
-            peers: peers to send this proposal
-
-        Return: True in success False in failure
-        """
-        if not peers:
-            peers = self.peers.values()
-        if not tx_context:
-            raise Exception("The transaction context is null.")
-
-        return self._send_cc_proposal(tx_context, CC_INSTANTIATE, peers)
+        """객체화된 chaincode 제안을 peer들에게 전송"""
 
     def send_upgrade_proposal(self, tx_context, peers):
-        """ Upgrade the chaincode.
-
-        Args:
-            tx_context: transaction context
-            peers: peers to send this proposal
-
-        Return: True in success and False in failure
-
+        """
+        peer들에게 체인코드 업그레이드를 제안하는 트랜잭션 전송
         Note: The policy must the one from instantiate
         """
 
-        if not peers:
-            peers = self.peers.values()
-        if not tx_context:
-            raise Exception("The transaction context is null.")
-
-        return self._send_cc_proposal(tx_context, CC_UPGRADE, peers)
-
     def _build_principal(self, identity):
-        if 'role' not in identity:
-            raise Exception('NOT IMPLEMENTED')
-
-        newPrincipal = msp_principal_pb2.MSPPrincipal()
-
-        newPrincipal.principal_classification = \
-            msp_principal_pb2.MSPPrincipal.ROLE
-
-        newRole = msp_principal_pb2.MSPRole()
-
-        roleName = identity['role']['name']
-        if roleName == 'peer':
-            newRole.role = msp_principal_pb2.MSPRole.PEER
-        elif roleName == 'member':
-            newRole.role = msp_principal_pb2.MSPRole.MEMBER
-        elif roleName == 'admin':
-            newRole.role = msp_principal_pb2.MSPRole.ADMIN
-        else:
-            raise Exception(f'Invalid role name found: must'
-                            f' be one of "peer", "member" or'
-                            f' "admin", but found "{roleName}"')
-
-        mspid = identity['role']['mspId']
-        if not mspid or not isinstance(mspid, str):
-            raise Exception(f'Invalid mspid found: "{mspid}"')
-        newRole.msp_identifier = mspid.encode()
-
-        newPrincipal.principal = newRole.SerializeToString()
-
-        return newPrincipal
+        """
+        식별자의 역할명이 peer/member/admin 인지에 따라 MSP 정책에 역할 설정
+        문자열인 MSP ID를 인코딩-->역할 객체에 추가-->직렬화-->정책 객체 반환
+        """
 
     def _get_policy(self, policy):
-        type = list(policy.keys())[0]
-        # signed-by case
-        if type == 'signed-by':
-            signedBy = policies_pb2.SignaturePolicy()
-            signedBy.signed_by = policy['signed-by']
-            return signedBy
-        # n-of case
-        else:
-            n = int(type.split('-of')[0])
-
-            nOutOf = policies_pb2.SignaturePolicy.NOutOf()
-            nOutOf.n = n
-            subs = []
-            for sub in policy[type]:
-                subPolicy = self._get_policy(sub)
-                subs.append(subPolicy)
-
-            nOutOf.rules.extend(subs)
-
-            nOf = policies_pb2.SignaturePolicy()
-            nOf.n_out_of.CopyFrom(nOutOf)
-
-            return nOf
+        """
+        정책 객체의 key가 signed-by 또는 nOf 유형인지에 따라 해당 객체 반환
+        """
 
     def _check_policy(self, policy):
         if not policy:

@@ -44,7 +44,7 @@ _logger = logging.getLogger(__name__ + ".block_decoder")
 
 class BlockDecoder(object):
     """
-        An object of a fully decoded protobuf message "Block"
+    decode된 protobuf message "Block" 객체
     """
 
     @staticmethod
@@ -66,15 +66,7 @@ class BlockDecoder(object):
     @staticmethod
     def decode_transaction(processed_tx_bytes):
         """
-        Decodes a transaction proto and constructs a deserialized object
-
-        Args:
-            processed_tx_bytes {str} -- Binary content of tx
-
-        Returns: Dictionary containing tx block information
-
-        Raises:
-            ValueError -- If data is not passed to the method
+        직렬화(byte)된 트랜잭션 객체 --> JSON화(딕셔너리형)
         """
         if not processed_tx_bytes:
             raise ValueError("BlockDecoder :: decode_transaction \
@@ -89,24 +81,16 @@ class BlockDecoder(object):
                 decode_block_data_envelope(pr_processed_tx.transactionEnvelope)
         return processed_tx
 
-
 class FilteredBlockDecoder(object):
     """
-        An object of a fully decoded protobuf message "FilteredBlock"
+    필터링된 byte 블록 객체 --> JSON화(딕셔너리형)
     """
 
     @staticmethod
     def decode(block_bytes):
         """
-        Constructs a JSON Object containing all decoded values from
-        protobuf encoded `FilteredBlock` bytes.
 
-        Args:
-            block_bytes (bytes): FilteredBlock instance
-
-        Returns: Dictionary containing decoded Filtered Block instance.
         """
-
         filtered_block = {}
 
         try:
@@ -118,6 +102,9 @@ class FilteredBlockDecoder(object):
             fts = proto_block.filtered_transactions
 
             for ft in fts:
+                """
+                필터링된 트랜잭션-->트랜잭션ID, 타입, 유효성검증 코드
+                """
                 code = tx_validation_code.get(ft.tx_validation_code,
                                               'UNKNOWN_VALIDATION_CODE')
                 ft_decoded = {
@@ -140,7 +127,6 @@ class FilteredBlockDecoder(object):
         except Exception as e:
             raise ValueError("FilteredBlockDecoder :: decode failed", e)
         return filtered_block
-
 
 tx_validation_code = {
     0: 'VALID',
@@ -183,13 +169,11 @@ type_as_string = {
 }
 
 implicit_metapolicy_rule = ['ANY', 'ALL', 'MAJORITY']
-
 policy_policy_type = ['UNKNOWN', 'SIGNATURE', 'MSP', 'IMPLICIT_META']
-
 
 class HeaderType(object):
     """
-        HeaderType class having decodePayload and convertToString methods
+    HeaderType class having decodePayload and convertToString methods
     """
 
     @staticmethod
@@ -212,15 +196,9 @@ class HeaderType(object):
             result = {}
         return result
 
-
 def decode_block_header(proto_block_header):
     """
-    Decodes the header of Block
-
-    Args:
-        proto_block_header (str): Block Header proto
-
-    Returns: Decoded BlockHeader inside Block instance.
+    Block 객체 내의 헤더를 비직렬화
     """
     block_header = {}
     block_header['number'] = proto_block_header.number
@@ -229,14 +207,11 @@ def decode_block_header(proto_block_header):
     block_header['data_hash'] = binascii.b2a_hex(proto_block_header.data_hash)
     return block_header
 
-
 def decode_block_data(proto_block_data, not_proto=False):
-    """Decodes the data of Block.
-
-    Args:
+    """
+    Decodes the data of Block.
         proto_block_data (str): Block Data proto.
         not_proto (bool): Boolean for if proto.
-
     Returns: deserialized block_data
     """
     data = {}

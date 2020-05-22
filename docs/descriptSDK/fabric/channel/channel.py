@@ -4,8 +4,6 @@ import sys
 import re
 from _sha256 import sha256
 
-from hfc.protos.msp import msp_principal_pb2
-
 from hfc.fabric.block_decoder import BlockDecoder
 from hfc.fabric.transaction.tx_proposal_request import \
     create_tx_prop_req, CC_INSTALL, CC_TYPE_GOLANG, \
@@ -13,6 +11,7 @@ from hfc.fabric.transaction.tx_proposal_request import \
 from hfc.protos.common import common_pb2, policies_pb2, collection_pb2
 from hfc.protos.orderer import ab_pb2
 from hfc.protos.peer import chaincode_pb2, proposal_pb2
+from hfc.protos.msp import msp_principal_pb2
 from hfc.protos.discovery import protocol_pb2
 from hfc.protos.utils import create_cc_spec, create_seek_info, \
     create_seek_payload, create_envelope
@@ -23,111 +22,67 @@ from hfc.util.utils import proto_str, current_timestamp, proto_b, \
 from .channel_eventhub import ChannelEventHub
 
 SYSTEM_CHANNEL_NAME = "testchainid"
-
 _logger = logging.getLogger(__name__)
 _logger.setLevel(logging.DEBUG)
 
-
 class Channel(object):
-    """The class represents of the channel.
-    This is a client-side-only call. To create a new channel in the fabric
-    call client._create_or_update_channel().
+    """
+    클라이언트만 호출 가능한 (채널 생성/업데이트를 위한) 객체
+    client._create_or_update_channel()
     """
 
     def __init__(self, name, client):
-        """Construct channel instance
-
-        Args:
-            client (object): fabric client instance, which provides
-            operational context
-            name (str): a unique name serves as the identifier of the channel
         """
-        pat = "^[a-z][a-z0-9.-]*$"  # matching patter for regex checker
-        if not re.match(pat, name):
-            raise ValueError(
-                "ERROR: Channel name is invalid. It should be a \
-                    string and match {}, but got {}".format(pat, name)
-            )
-
+        client 객체, 고유한 채널명(^[a-z][a-z0-9.-]*$)을 받아 초기화
+        """
         self._name = name
         self._client = client
         self._orderers = {}
         self._peers = {}
-        # enable communication between peers of different orgs and discovery
         self._anchor_peers = []
         self._kafka_brokers = []
-        # self._msp_manager = MSPManger() # TODO: use something instead
         self._initialized = False
         self._is_dev_mode = False
         self._channel_event_hubs = {}
+        # self._msp_manager = MSPManger() # TODO: use something instead
 
     def add_orderer(self, orderer):
-        """Add orderer endpoint to a channel object.
-
-        A channel instance may choose to use a single orderer node, which
-        will broadcast requests to the rest of the orderer network. Or if
-        the application does not trust the orderer nodes, it can choose to
-        use more than one by adding them to the channel instance. And all
-        APIs concerning the orderer will broadcast to all _orderers
-        simultaneously.
-
-        Args:
-             orderer: an instance of the Orderer class
-
+        """
+        채널 객체에 orderer 종단점을 추가
+        orderer 노드 하나를 선택하여 orderer 네트워크에 broadcast 요청
         """
         self._orderers[orderer.endpoint] = orderer
 
-    def remove_orderer(self, orderer):
-        """Remove orderer endpoint from a channel object.
-
-        Args:
-            orderer: an instance of the Orderer class
-
-        """
-        if orderer.endpoint in self._orderers:
-            self._orderers.pop(orderer.endpoint, None)
-
     def add_peer(self, peer):
-        """Add peer endpoint to a chain object.
-
-        Args:
-             peer: an instance of the Peer class
+        """
+        체인 객체에 peer 종단점을 추가
         """
         self._peers[peer.endpoint] = peer
 
-    def remove_peer(self, peer):
-        """Remove peer endpoint from a channel object.
+    def remove_orderer(self, orderer):
+        """
+        채널 객체에서 orderer 종단점을 삭제
+        """
 
-        Args:
-            peer: an instance of the Peer class
+    def remove_peer(self, peer):
+        """
+        채널 객체에서 peer 종단점을 삭제
         """
         if peer.endpoint in self._peers:
             self._peers.pop(peer.endpoint, None)
 
     @property
     def orderers(self):
-        """Get _orderers of a channel.
-
-        Returns: The orderer list on the channel
-
-        """
         return self._orderers
+        """채널의 orderer 목록 반환"""
 
     @property
     def peers(self):
-        """Get peers of a channel.
-
-        Returns: The peer list on the chain
-        """
         return self._peers
+        """체인 상의 peer 노드 목록"""
 
     @property
     def is_dev_mode(self):
-        """Get is_dev_mode
-
-        Returns: is_dev_mode
-
-        """
         return self._is_dev_mode
 
     @is_dev_mode.setter
@@ -135,134 +90,38 @@ class Channel(object):
         self._is_dev_mode = mode
 
     def _get_latest_block(self, tx_context, orderer):
-        """ Get latest block from orderer.
-
-        Args:
-            tx_context (object): a tx_context instance
-            orderer (object): a orderer instance
-        """
-        seek_info = ab_pb2.SeekInfo()
-        seek_info.start.newest = ab_pb2.SeekNewest()
-        seek_info.stop.newest = ab_pb2.SeekNewest()
-        seek_info.behavior = \
-            ab_pb2.SeekInfo.SeekBehavior.Value('BLOCK_UNTIL_READY')
-
-        seek_info_header = self._build_channel_header(
-            common_pb2.HeaderType.Value('DELIVER_SEEK_INFO'),
-            tx_context.tx_id, self._name, current_timestamp(),
-            tx_context.epoch)
-
-        signature_header = common_pb2.SignatureHeader()
-        signature_header.creator = tx_context.identity
-        signature_header.nonce = tx_context.nonce
-
-        seek_payload = common_pb2.Payload()
-        seek_payload.header.signature_header = \
-            signature_header.SerializeToString()
-        seek_payload.header.channel_header = \
-            seek_info_header.SerializeToString()
-        seek_payload.data = seek_info.SerializeToString()
-
-        envelope = common_pb2.Envelope()
-        envelope.signature = tx_context.sign(seek_payload.SerializeToString())
-        envelope.payload = seek_payload.SerializeToString()
+        """orderer 객체의 마지막 (serialized)블록 반환"""
 
     def _get_random_orderer(self):
-        if sys.version_info < (3, 0):
-            return random.choice(self._orderers.values())
-        else:
-            return random.choice(list(self._orderers.values()))
+        """orderer 네트워크에서 랜덤으로 orderer 객체 1개 선택"""
 
     @property
     def name(self):
-        """Get channel name.
-
-        Returns: channel name
-
-        """
-        return self._name
+        """채널명 얻기"""
 
     def state_store(self):
-        """Get the key val store instance of the instantiating client.
-        Get the KeyValueStore implementation (if any)
-        that is currently associated with this channel
-        Returns: the current KeyValueStore associated with this
-        channel / client.
-
-        """
+        """이 채널 상 client객체의 key-value 저장소 객체 얻기"""
         return self._client.state_store
 
     def _validate_state(self):
-        """Validate channel state.
-
-        Raises:
-            ValueError
-
-        """
-        if not self._initialized:
-            raise ValueError(
-                "Channel {} has not been initialized.".format(self._name))
+        """채널 상태(초기화 여부) 체크"""
 
     @property
     def is_sys_chan(self):
-        """Get if system channel"""
-        return self._is_sys_chan
+        """채널이 시스템체널이면 채널객체 반환"""
 
     def _validate_peer(self, peer):
-        """Validate peer
-
-        Args:
-            peer: peer
-
-        Raises:
-            ValueError
-
-        """
-        if not peer:
-            raise ValueError("Peer value is null.")
-
-        if self._is_sys_chan:
-            return
-
-        if peer not in self._peers.values():
-            raise ValueError(
-                "Channel %s does not have peer %s".format(self._name,
-                                                          peer.endpoint))
-
-        if self not in peer.channels:
-            raise ValueError(
-                "Peer %s not joined this channel %s".format(peer.endpoint,
-                                                            self._name)
-            )
+        """peer가 Null이나 시스템체인은 아닌지, 체인에 존재하는지 체크"""
 
     def _validate_peers(self, peers):
-        """Validate peer set
-
-        Args:
-            peers: peers
-
-        Raises:
-            ValueError
-
-        """
-        if not peers:
-            raise ValueError("Collection of peers is null.")
-
-        if len(peers) == 0:
-            raise ValueError("Collection of peers is empty.")
-
-        for peer in peers:
-            self._validate_peer(peer)
+        """peer 집합의 모든 peer들을 유효성 체크"""
 
     def send_install_proposal(self, tx_context, peers=None):
         """ Send install chaincode proposal
-
         Args:
             install_proposal_req: install proposal request
             targets: a set of peer to send
-
         Returns: a set of proposal response
-
         """
         if peers is None:
             targets = self._peers.values()
@@ -329,47 +188,23 @@ class Channel(object):
     def _build_channel_header(type, tx_id, channel_id,
                               timestamp, epoch=0, extension=None):
         """Build channel.
-
-        Args:
             extension: extension
             timestamp: timestamp
             channel_id: channel id
             tx_id: transaction id
             type: type
             epoch: epoch
-
-        Returns: common_proto.Header instance
-
+        Returns: common_proto.Header 객체
         """
-        channel_header = common_pb2.ChannelHeader()
-        channel_header.type = type
-        channel_header.version = 1
-        channel_header.channel_id = proto_str(channel_id)
-        channel_header.tx_id = proto_str(tx_id)
-        channel_header.epoch = epoch
-        channel_header.timestamp = timestamp
-        if extension:
-            channel_header.extension = extension
-
-        return channel_header
 
     def is_readonly(self):
-        """Check the channel if read-only
-
-        Get the channel status to see if the underlying channel has been
-        terminated, making it a read-only channel, where information
-        (transactions and state_store) can be queried but no new transactions
-        can be submitted.
-
-        Returns: True if the channel is read-only, False otherwise.
-
         """
-        pass
+        read-only 채널(트랜잭션,상태저장소는 조회만 가능)인지 체크(T/F)
+        """
 
     def join_channel(self, request):
         """
         To join the peer to a channel.
-
         Args:
             request: the request to join a channel
         Return:

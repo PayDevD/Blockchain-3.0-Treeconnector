@@ -1,37 +1,16 @@
-
 class ChannelConfiguration(object):
-    """A class represents channel configuration bytes."""
 
     def __init__(self, config=None, file_path=None):
-        """Construct ChannelConfiguration by args.
-
-        Args:
-            config: raw config bytes
-            file_path: config file path
         """
-        self._config = None
-
-        if file_path:
-            with open(file_path, mode='rb') as file:
-                self._config = file.read()
-
-        if config:
-            self._config = config
+        (byte화된 설정, 설정파일 경로)를 받아 채널 설정 객체 생성
+        설정 파일경로가 있으면, 파일을 읽어 (bytes)로 변환
+        설정 파일경로가 없고 (byte형 설정)만 있으면, 객체에 이를 저장
+        """
 
     @property
     def config(self):
-        """Get config bytes.
-
-        Returns: raw config bytes
-
-        """
         return self._config
 
     @config.setter
     def config(self, config):
-        """Set config bytes.
-
-        Args:
-            config: raw config bytes
-        """
         self._config = config

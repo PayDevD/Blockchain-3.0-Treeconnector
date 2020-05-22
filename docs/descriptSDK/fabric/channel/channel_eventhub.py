@@ -24,30 +24,24 @@ START_ONLY = 1
 END_ONLY = 2
 START_AND_END = 3
 
-
 class EventRegistration(object):
     def __init__(self, onEvent=None, unregister=True, disconnect=False):
-        self.onEvent = onEvent
-        self.unregister = unregister
-        self.disconnect = disconnect
-
+        "이벤트 등록 객체"
 
 class ChaincodeRegistration(object):
     def __init__(self, ccid, pattern, er, as_array):
-        self.uuid = uuid.uuid4().hex
-        self.ccid = ccid
-        self.pattern = pattern
-        self.er = er
-        self.as_array = as_array
-
+        "체인코드 등록 객체"
 
 class ChannelEventHub(object):
-
     def __init__(self, peer, channel_name, requestor):
+        """
+        채널명, 피어, 요청자
+        이벤트 스트림의 시작, 중지
+        트랜잭션/reg의 번호/ID
+        """
         self._peer = peer
         self._requestor = requestor
         self._channel_name = channel_name
-
         self.stream = None
         self._start = None
         self._stop = None
@@ -61,14 +55,12 @@ class ChannelEventHub(object):
         self._start_stop_connect = False
         self._last_seen = None
         self._signed_event = None
-
         self._ending_block_seen = False
         self._ending_block_newest = False
-
         self._ending_block_newest = False
 
     @property
-    def connected(self):
+    def connected(self): "getter"
         return self._connected
 
     @connected.setter
@@ -76,178 +68,36 @@ class ChannelEventHub(object):
         self._connected = connected
 
     def _create_seek_info(self, start=None, stop=None):
-
-        behavior = 'BLOCK_UNTIL_READY'
-
-        # build start
-        seek_start = ab_pb2.SeekPosition()
-        if start is None or start == 'newest':
-            seek_start.newest.CopyFrom(ab_pb2.SeekNewest())
-        elif start == 'oldest':
-            seek_start.oldest.CopyFrom(ab_pb2.SeekOldest())
-        else:
-            seek_specified_start = ab_pb2.SeekSpecified()
-            seek_specified_start.number = start
-            seek_start.specified.CopyFrom(seek_specified_start)
-
-        # build stop
-        seek_stop = ab_pb2.SeekPosition()
-        if stop == 'newest':
-            self._ending_block_newest = True
-            seek_stop.newest.CopyFrom(ab_pb2.SeekNewest())
-            behavior = 'FAIL_IF_NOT_READY'
-        elif start == 'oldest':
-            seek_stop.oldest.CopyFrom(ab_pb2.SeekOldest())
-            behavior = 'FAIL_IF_NOT_READY'
-        else:
-            seek_specified_stop = ab_pb2.SeekSpecified()
-            if stop is not None:
-                seek_specified_stop.number = stop
-                behavior = 'FAIL_IF_NOT_READY'
-            else:
-                seek_specified_stop.number = sys.maxsize
-            seek_stop.specified.CopyFrom(seek_specified_stop)
-
-        # seek info with all parts
-        seek_info = ab_pb2.SeekInfo()
-        seek_info.start.CopyFrom(seek_start)
-        seek_info.stop.CopyFrom(seek_stop)
-
-        # BLOCK_UNTIL_READY will mean hold the stream open and keep sending
-        # as the blocks come in
-        # FAIL_IF_NOT_READY will mean if the block is not there throw an error
-        seek_info.behavior = ab_pb2.SeekInfo.SeekBehavior.Value(behavior)
-
+        "seek 시작점~중지점 까지 빌드(behavior = 상태 flag)"
         return seek_info
 
     def _get_stream(self):
-        """ get the events of the channel.
-        Return: the events in success or None in fail.
         """
-        _logger.info("create peer delivery stream")
-
-        if self._signed_event is not None:
-            return self._peer.delivery(self._signed_event,
-                                       filtered=self._filtered)
-
-        seek_info = self._create_seek_info(self._start, self._stop)
-
-        kwargs = {}
-        if self._peer._client_cert_path:
-            with open(self._peer._client_cert_path, 'rb') as f:
-                b64der = pem_to_der(f.read())
-                kwargs['tls_cert_hash'] = sha256(b64der).digest()
-
-        tx_context = TXContext(self._requestor, self._requestor.cryptoSuite,
-                               TXProposalRequest())
-
-        seek_info_header = build_channel_header(
-            common_pb2.HeaderType.Value('DELIVER_SEEK_INFO'),
-            tx_context.tx_id,
-            self._channel_name,
-            current_timestamp(),
-            tx_context.epoch,
-            **kwargs
-        )
-
-        seek_header = build_header(
-            tx_context.identity,
-            seek_info_header,
-            tx_context.nonce)
-
-        seek_payload_bytes = create_seek_payload(seek_header, seek_info)
-        sig = tx_context.sign(seek_payload_bytes)
-        envelope = create_envelope(sig, seek_payload_bytes)
-
-        # this is a stream response
+        채널에 signed 이벤트가 있으면 peer에게 전달
+        seek_info = seek 시작~끝 정보
+        tx_context = 요청된 트랜잭션의 내용
+        seek_info_header = 채널 헤더(헤더타입+트랜잭션ID+채널명+타임스탬프)
+        seek_header = 트랜잭션식별자+채널 헤더+트랜잭션nounce
+        완성된 seek 페이로드를 tx_context.sign하여 envelope형태로 전달
+        """
         return self._peer.delivery(envelope, filtered=self._filtered)
 
     def check_start_stop_connect(self, start=None, stop=None):
-        if start is not None or stop is not None:
-            if self._start_stop_action:
-                raise Exception('Not able to connect with start/stop'
-                                ' block when a registered listener has'
-                                ' those options.')
-
-            if start == 'last_seen':
-                start = self._last_seen
-
-            if not ((isinstance(start, int)
-                    or start in ('oldest', 'newest'))
-                    or start is None):
-                raise Exception(f'start value must be: last_seen, oldest,'
-                                f' newest or an integer')
-
-            if stop == 'last_seen':
-                stop = self._last_seen
-
-            if not ((isinstance(stop, int)
-                    or stop == 'newest')
-                    or stop is None):
-                raise Exception(f'stop value must be: last_seen, newest,'
-                                f' sys.maxsize or an integer')
-
-            if isinstance(start, int) \
-                    and isinstance(stop, int)\
-                    and start > stop:
-                raise Exception('start cannot be greater than stop')
-
-            self._start = start
-            self._stop = stop
-
-            self._start_stop_connect = True
+        "연결의 시작, 중지가 있는지 체크하여 객체의 변수에 상태 저장"
 
     def check_start_stop_listener(self, start=None, stop=None):
-
-        result = NO_START_STOP
-
-        if self._start_stop_action:
-            raise Exception('This ChannelEventHub is not open to event'
-                            ' listener registrations')
-
-        if start is not None or stop is not None:
-            if self.have_registrations():
-                raise Exception('Only one event registration is allowed when'
-                                ' start/stop block are used.')
-
-            if self._start_stop_connect:
-                raise Exception('The registration with a start/stop block'
-                                ' must be done before calling connect()')
-
-            if stop is not None:
-                if not (isinstance(stop, int)
-                        or stop == 'newest'):
-                    raise Exception('stop must be an integer, newest or'
-                                    ' sys.maxsize')
-                else:
-                    result = END_ONLY
-
-            if start is not None:
-                if not isinstance(start, int):
-                    raise Exception('start must be an integer')
-                else:
-                    # will move result to START_ONLY or START_AND_END
-                    result += 1
-
-            if isinstance(start, int) \
-                    and isinstance(stop, int) \
-                    and start > stop:
-                raise Exception('start cannot be greater than stop')
-
-            self._start = start
-            self._stop = stop
-
+        """
+        이 이벤트허브 객체가 이벤트 리스너 등록에 열려있는지 체크
+        start, stop 시점을 기반으로 계산
+        """
         return result
 
     def _processBlockEvents(self, block):
         for reg_num in self._reg_nums:
-
             if reg_num.unregister:
                 self.unregisterBlockEvent(reg_num)
-
             if reg_num.onEvent is not None:
                 reg_num.onEvent(block)
-
             if reg_num.disconnect:
                 self.disconnect()
 
@@ -575,4 +425,3 @@ class ChannelEventHub(object):
         """
         self.stream.cancel()
         self._start = None
-        

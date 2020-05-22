@@ -1,9 +1,6 @@
-"""
-docker-compose -f ./프로젝트/내/파일경로.yaml up
-"""
-version: '2'  # v3 does not support 'extends' yet
+version: '2'
 services:
-  orderer.example.com:  # There can be multiple orderers
+  orderer.example.com:
     extends:
       file: orderer-base.yaml
       service: orderer-base

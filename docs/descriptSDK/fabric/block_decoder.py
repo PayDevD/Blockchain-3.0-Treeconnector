@@ -39,95 +39,6 @@ from hfc.protos.ledger.rwset.kvrwset import kv_rwset_pb2
 """
 from hfc.protos.gossip import message_pb2
 
-"로그 객체"
-_logger = logging.getLogger(__name__ + ".block_decoder")
-
-class BlockDecoder(object):
-    """
-    decode된 protobuf message "Block" 객체
-    """
-
-    @staticmethod
-    def decode(block_bytes):
-        """
-        직렬화(byte)된 블록 객체 --> JSON화(딕셔너리형)
-        """
-        block = {}
-        try:
-            proto_block = common_pb2.Block()
-            proto_block.ParseFromString(block_bytes)
-            block['header'] = decode_block_header(proto_block.header)
-            block['data'] = decode_block_data(proto_block.data, True)
-            block['metadata'] = decode_block_metadata(proto_block.metadata)
-        except Exception as e:
-            raise ValueError("BlockDecoder :: decode failed", e)
-        return block
-
-    @staticmethod
-    def decode_transaction(processed_tx_bytes):
-        """
-        직렬화(byte)된 트랜잭션 객체 --> JSON화(딕셔너리형)
-        """
-        if not processed_tx_bytes:
-            raise ValueError("BlockDecoder :: decode_transaction \
-                doesnot have processed transaction bytes")
-        processed_tx = {}
-        pr_processed_tx = transaction_pb2.ProcessedTransaction()
-        pr_processed_tx.ParseFromString(processed_tx_bytes)
-        if pr_processed_tx:
-            processed_tx['validation_code'] = \
-                pr_processed_tx.validationCode
-            processed_tx['transaction_envelope'] = \
-                decode_block_data_envelope(pr_processed_tx.transactionEnvelope)
-        return processed_tx
-
-class FilteredBlockDecoder(object):
-    """
-    필터링된 byte 블록 객체 --> JSON화(딕셔너리형)
-    """
-
-    @staticmethod
-    def decode(block_bytes):
-        """
-
-        """
-        filtered_block = {}
-
-        try:
-            proto_block = events_pb2.FilteredBlock()
-            proto_block.ParseFromString(block_bytes)
-            filtered_block['channel_id'] = proto_block.channel_id
-            filtered_block['number'] = proto_block.number
-            filtered_block['filtered_transactions'] = []
-            fts = proto_block.filtered_transactions
-
-            for ft in fts:
-                """
-                필터링된 트랜잭션-->트랜잭션ID, 타입, 유효성검증 코드
-                """
-                code = tx_validation_code.get(ft.tx_validation_code,
-                                              'UNKNOWN_VALIDATION_CODE')
-                ft_decoded = {
-                    'txid': ft.txid,
-                    'type': HeaderType.convert_to_string(ft.type),
-                    'tx_validation_code': code
-                }
-
-                if hasattr(ft, 'transaction_actions'):
-                    tx_a = {'chaincode_actions': []}
-                    for ca in ft.transaction_actions.chaincode_actions:
-                        cce = decode_chaincode_events(
-                            ca.chaincode_event.SerializeToString())
-                        tx_a['chaincode_actions'].append({
-                            'chaincode_event': cce
-                        })
-                    ft_decoded['transaction_actions'] = tx_a
-                filtered_block['filtered_transactions'].append(ft_decoded)
-
-        except Exception as e:
-            raise ValueError("FilteredBlockDecoder :: decode failed", e)
-        return filtered_block
-
 tx_validation_code = {
     0: 'VALID',
     1: 'NIL_ENVELOPE',
@@ -159,596 +70,123 @@ tx_validation_code = {
 }
 
 type_as_string = {
-    0: 'MESSAGE',  # Used for messages which are signed but opaque
-    1: 'CONFIG',  # Used for messages which express the channel config
-    2: 'CONFIG_UPDATE',  # Used for transactions that update the channel config
-    3: 'ENDORSER_TRANSACTION',  # Used to submit endorser based transactions
-    4: 'ORDERER_TRANSACTION',  # Used internally by the orderer for management
-    5: 'DELIVER_SEEK_INFO',  # Used to instruct the Deliver API to seek
-    6: 'CHAINCODE_PACKAGE'  # Used to packaging chaincode artifacts for install
+    0: 'MESSAGE',  # signed 이지만 opaque는 아닌 메시지
+    1: 'CONFIG',  # 채널설정을 표현
+    2: 'CONFIG_UPDATE',  # 채널 설정을 업데이트하는 트랜잭션
+    3: 'ENDORSER_TRANSACTION',  # endorser 기반 트랜잭션 전송
+    4: 'ORDERER_TRANSACTION',  # 관리를 위해 orderer 내부에서 사용
+    5: 'DELIVER_SEEK_INFO',  # Deliver API to seek 명령
+    6: 'CHAINCODE_PACKAGE'  # 설치를 위한 체인코드 artifacts 패키징
 }
-
 implicit_metapolicy_rule = ['ANY', 'ALL', 'MAJORITY']
 policy_policy_type = ['UNKNOWN', 'SIGNATURE', 'MSP', 'IMPLICIT_META']
 
+class BlockDecoder(object):
+
+    @staticmethod
+    def decode(block_bytes):
+        """직렬화(byte)된 블록 객체 --> JSON화(딕셔너리형)"""
+        return block
+
+    @staticmethod
+    def decode_transaction(processed_tx_bytes):
+        """직렬화(byte)된 트랜잭션 객체 --> JSON화(딕셔너리형)"""
+        return processed_tx
+
+class FilteredBlockDecoder(object):
+
+    @staticmethod
+    def decode(block_bytes):
+        """
+        필터링된 byte 블록 객체 --> JSON화(딕셔너리형)
+        필터링된 트랜잭션-->트랜잭션ID, 타입, 유효성검증 코드
+        """
+        return filtered_block
+
 class HeaderType(object):
-    """
-    HeaderType class having decodePayload and convertToString methods
-    """
 
     @staticmethod
     def convert_to_string(type_value):
-        return type_as_string.get(type_value, 'UNKNOWN_TYPE')
+        "헤더 객체 타입-->문자열로"
 
     @staticmethod
     def decode_payload_based_on_type(proto_data, type_value):
-        result = None
-        if type_value == 1:
-            result = decode_config_envelope(proto_data)
-        elif type_value == 2:
-            result = decode_config_update_envelope(proto_data)
-        elif type_value == 3:
-            result = decode_endorser_transaction(proto_data)
-        else:
-            msg = f'HeaderType :: decode_payload found a header type of' \
-                f' {type_value} :: {HeaderType.convert_to_string(type_value)}'
-            _logger.debug(msg)
-            result = {}
-        return result
+        "타입에 따라 페이로드 decode"
 
 def decode_block_header(proto_block_header):
-    """
-    Block 객체 내의 헤더를 비직렬화
-    """
-    block_header = {}
-    block_header['number'] = proto_block_header.number
-    block_header['previous_hash'] = \
-        binascii.b2a_hex(proto_block_header.previous_hash)
-    block_header['data_hash'] = binascii.b2a_hex(proto_block_header.data_hash)
-    return block_header
+    """Block 객체 내의 헤더를 비직렬화"""
 
 def decode_block_data(proto_block_data, not_proto=False):
-    """
-    Decodes the data of Block.
-        proto_block_data (str): Block Data proto.
-        not_proto (bool): Boolean for if proto.
-    Returns: deserialized block_data
-    """
-    data = {}
-    data['data'] = []
-    for i in proto_block_data.data:
-        proto_envelope = None
-        if not_proto:
-            proto_envelope = common_pb2.Envelope()
-            proto_envelope.ParseFromString(i)
-        if proto_envelope:
-            envelope = decode_block_data_envelope(proto_envelope)
-            data['data'].append(envelope)
-    return data
-
+    """블록으로부터 데이터를 deserialize해 반환"""
 
 def decode_block_metadata(proto_block_metadata):
-    """Decodes block metadata from block
-
-    Args:
-        proto_block_metadata (bytes): Block metadata proto content
-
-    Returns: deserialized metadata contents
-    """
-    metadata = {}
-    metadata['metadata'] = []
-    if proto_block_metadata and proto_block_metadata.metadata:
-        signatures = decode_metadata_signatures(
-            proto_block_metadata.metadata[common_pb2.SIGNATURES])
-        metadata['metadata'].append(signatures)
-
-        last_config = decode_last_config_sequence_number(
-            proto_block_metadata.metadata[common_pb2.LAST_CONFIG])
-        metadata['metadata'].append(last_config)
-
-        transaction_filter = decode_transaction_filter(
-            proto_block_metadata.metadata[common_pb2.TRANSACTIONS_FILTER])
-        metadata['metadata'].append(transaction_filter)
-
-    return metadata
-
+    """블록으로부터 메타데이터를 deserialize해 반환"""
 
 def decode_block_data_envelope(proto_envelope):
-    """Decodes the envelope contents of Block
-
-    Args:
-        proto_envelope (str): Envelope proto
-
-    Returns: deserialized block envelope
-    """
-    envelope = {}
-    envelope['signature'] = proto_envelope.signature
-    envelope['payload'] = {}
-    proto_payload = common_pb2.Payload()
-    proto_payload.ParseFromString(proto_envelope.payload)
-    envelope['payload']['header'] = decode_header(proto_payload.header)
-    envelope['payload']['data'] = \
-        HeaderType.decode_payload_based_on_type(
-            proto_payload.data,
-            envelope['payload']['header']['channel_header']['type'])
-    envelope['payload']['header']['channel_header']['type_string'] = \
-        HeaderType.convert_to_string(
-            envelope['payload']['header']['channel_header']['type'])
-    return envelope
-
+    """블록에서 envelope를 deserialize해 반환"""
 
 def decode_header(proto_header):
-    """Decodes the Payload header in envelope
-
-    Args:
-        proto_header (str): Envelope Payload
-
-    Returns: deserialized envelope header
-    """
-    header = {}
-    header['channel_header'] = \
-        decode_channel_header(proto_header.channel_header)
-    header['signature_header'] = \
-        decode_signature_header(proto_header.signature_header)
-    return header
-
+    """envelope에서 페이로드 헤더를 deserialize해 반환"""
 
 def decode_channel_header(header_bytes):
-    """Decodes channel header for Payload channel header
-
-    Args:
-        header_bytes (str): Bytes channel header
-
-    Return: deserialized payload channel_header
-    """
-    channel_header = {}
-    proto_channel_header = common_pb2.ChannelHeader()
-    proto_channel_header.ParseFromString(header_bytes)
-    channel_header['type'] = proto_channel_header.type
-    channel_header['version'] = decode_version(proto_channel_header.version)
-    channel_header['timestamp'] = \
-        timestamp_to_date(proto_channel_header.timestamp)
-    channel_header['channel_id'] = proto_channel_header.channel_id
-    channel_header['tx_id'] = proto_channel_header.tx_id
-    channel_header['epoch'] = proto_channel_header.epoch
-    channel_header['extension'] = proto_channel_header.extension
-    return channel_header
-
+    """채널 헤더 Decode --> deserialized 페이로드 채널 헤더 반환"""
 
 def timestamp_to_date(timestamp):
-    """Converts timestamp to current date
-
-    Args:
-        timestamp: Timestamp value
-
-    Returns: String formatted date in %Y-%m-%d %H:%M:%S
-    """
-    if not timestamp:
-        return None
-    # WARNING: this will break on Windows because of the fromtimestamp()
-    # restriction of values by C `localtime()` or `gmtime()` calls.
-    millis = timestamp.seconds * 1000 + timestamp.nanos / 1000000
-    date = datetime.datetime.fromtimestamp(millis / 1e3, tz=timezone.utc)
-    return date.strftime("%Y-%m-%d %H:%M:%S")
-
+    """타임스탬프를 %Y-%m-%d %H:%M:%S 형식으로 반환"""
 
 def decode_version(version_long):
-    """Takes version proto object and returns version
-
-    Args:
-        version_long
-
-    Returns: integer value of version_long
-    """
-    return int(version_long)
-
+    """version_long 객체의 정수값(int형) 반환"""
 
 def decode_signature_header(signature_header_bytes):
-    """Decode signature header
-
-    Args:
-        signature_header_bytes: signature header bytes
-
-    Returns: deserialized signature_header
-    """
-    signature_header = {}
-    proto_signature_header = common_pb2.SignatureHeader()
-    proto_signature_header.ParseFromString(signature_header_bytes)
-    signature_header['creator'] = \
-        decode_identity(proto_signature_header.creator)
-    signature_header['nonce'] = \
-        binascii.b2a_hex(proto_signature_header.nonce)
-    return signature_header
-
+    """서명 헤더를 deserialize하여 반환"""
 
 def decode_identity(id_bytes):
-    """Decodes identity
-
-    Args:
-        id_bytes: byte of identity
-
-    Returns: deserialized identity
-    """
-    identity = {}
-    try:
-        proto_identity = identities_pb2.SerializedIdentity()
-        proto_identity.ParseFromString(id_bytes)
-        identity['mspid'] = proto_identity.mspid
-        identity['id_bytes'] = proto_identity.id_bytes.decode()
-    except Exception as e:
-        raise ValueError("BlockDecoder :: decode_identiy failed", e)
-    return identity
-
+    """byte형 ID를 문자열로 반환"""
 
 def decode_metadata_signatures(metadata_bytes):
-    """Decodes metadata signature from bytes
-
-    Args:
-        metadata_bytes (str): Metadata object proto
-
-    Returns: deserialized Metadata blocks
-    """
-    metadata = {}
-    proto_metadata = common_pb2.Metadata()
-    proto_metadata.ParseFromString(metadata_bytes)
-    metadata['value'] = proto_metadata.value
-    metadata['signatures'] = \
-        decode_metadata_value_signatures(proto_metadata.signatures)
-    return metadata
-
+    """메타데이터 서명을 decode"""
 
 def decode_metadata_value_signatures(proto_meta_signatures):
-    """Decodes all signatures in metadata values
-
-    Args:
-        proto_meta_signatures (list(str)): List of value objects
-
-    Returns: deserialized list of signatures from metadata values
-    """
-    signatures = []
-    if proto_meta_signatures:
-        for signature in proto_meta_signatures:
-            metadata_signature = {}
-            metadata_signature['signature_header'] = \
-                decode_signature_header(signature.signature_header)
-            metadata_signature['signature'] = signature.signature
-            signatures.append(metadata_signature)
-    return signatures
-
+    """메타데이터 값들로부터 서명 목록을 decode하여 반환"""
 
 def decode_last_config_sequence_number(metadata_bytes):
-    """Decodes last configuration and index for sequence number
-
-    Args:
-        metadata_bytes (str): encoded content for sequence number
-
-    Returns: deserialized dictionary of config sequence number
-    """
-    last_config = {
-        'value': {
-            'index': 0,
-            'signatures': []
-        }
-    }
-    if metadata_bytes:
-        proto_metadata = common_pb2.Metadata()
-        proto_metadata.ParseFromString(metadata_bytes)
-        proto_last_config = common_pb2.LastConfig()
-        proto_last_config.ParseFromString(proto_metadata.value)
-        last_config['value']['index'] = proto_last_config.index
-        last_config['signatures'] = \
-            decode_metadata_value_signatures(proto_metadata.signatures)
-    return last_config
-
+    """Decodes last configuration and index for sequence number"""
 
 def decode_transaction_filter(metadata_bytes):
-    """Decodes transaction filter from metadata bytes
-
-    Args:
-        metadata_bytes (str): Encoded list of transaction filters
-
-    Returns: decoded transaction_filter list
-    """
-    transaction_filter = []
-    if not metadata_bytes:
-        return None
-
-    for i in metadata_bytes:
-        transaction_filter.append(int(i))
-    return transaction_filter
-
+    """Decodes transaction filter from metadata bytes"""
 
 def decode_endorser_transaction(trans_bytes):
-    """Decodes
-
-    Args:
-        trans_bytes {[type]}: Serialized endorser transaction bytes
-
-    Returns: deserialized dictionary of endorser transaction data
-    """
-    data = {}
-    if trans_bytes:
-        transaction = transaction_pb2.Transaction()
-        transaction.ParseFromString(trans_bytes)
-        data['actions'] = []
-        if transaction and transaction.actions:
-            for tx_action in transaction.actions:
-                action = {}
-                action['header'] = \
-                    decode_signature_header(tx_action.header)
-                action['payload'] = \
-                    decode_chaincode_action_payload(tx_action.payload)
-                data['actions'].append(action)
-    return data
-
+    """Decodes endorser transaction data"""
 
 def decode_config_envelope(config_envelope_bytes):
-    """Decodes configuration envelope
-
-    Args:
-        config_envelope_bytes: byte of config envelope
-
-    Returns: deserialized config envelope
-    """
-    config_envelope = {}
-    proto_config_envelope = configtx_pb2.ConfigEnvelope()
-    proto_config_envelope.ParseFromString(config_envelope_bytes)
-    config_envelope['config'] = decode_config(proto_config_envelope.config)
-    config_envelope['last_update'] = {}
-    proto_last_update = proto_config_envelope.last_update
-    if proto_last_update:
-        config_envelope['last_update']['payload'] = {}
-        proto_payload = common_pb2.Payload()
-        proto_payload.ParseFromString(proto_last_update.payload)
-        config_envelope['last_update']['payload']['header'] = \
-            decode_header(proto_payload.header)
-        config_envelope['last_update']['payload']['data'] = \
-            decode_config_update_envelope(proto_payload.data)
-        config_envelope['last_update']['signature'] = \
-            proto_last_update.signature
-    return config_envelope
-
+    """deserialized config envelope"""
 
 def decode_config(proto_config):
-    """Decodes configuration from config envelope
-
-    Args:
-        proto_config (bytes): Config value
-
-    Returns: deserialized config
-    """
-    config = {}
-    config['sequence'] = str(proto_config.sequence)
-    config['channel_group'] = decode_config_group(proto_config.channel_group)
-    # config['type'] = proto_config.type
-    # TODO: getType() equivalent
-    return config
-
+    """Decodes configuration from config envelope"""
 
 def decode_config_update_envelope(config_update_envelope_bytes):
-    """Decode config update envelope
-
-    Args:
-        config_update_envelope_bytes (str): Bytes of update envelope
-
-    Returns: deserialized config update envelope signatures
-    """
-    config_update_envelope = {}
-    proto_config_update_envelope = configtx_pb2.ConfigUpdateEnvelope()
-    proto_config_update_envelope.ParseFromString(config_update_envelope_bytes)
-    config_update_envelope['config_update'] = \
-        decode_config_update(proto_config_update_envelope.config_update)
-    signatures = []
-    for signature in proto_config_update_envelope.signatures:
-        proto_config_signature = signature
-        config_signature = decode_config_signature(proto_config_signature)
-        signatures.append(config_signature)
-    config_update_envelope['signatures'] = signatures
-    return config_update_envelope
-
+    """deserialized config update envelope signatures"""
 
 def decode_config_update(config_update_bytes):
-    """Decodes update bytes in configuration
-
-    Args:
-        config_update_bytes (str): Bytes
-
-    Returns: deserialized configuration update
-    """
-    config_update = {}
-    proto_config_update = configtx_pb2.ConfigUpdate()
-    proto_config_update.ParseFromString(config_update_bytes)
-    config_update['channel_id'] = proto_config_update.channel_id
-    config_update['read_set'] = \
-        decode_config_group(proto_config_update.read_set)
-    config_update['write_set'] = \
-        decode_config_group(proto_config_update.write_set)
-    # config_update['type'] = proto_config_update TODO: getType() equivalent
-    return config_update
-
+    """Decodes update bytes in configuration"""
 
 def decode_config_groups(config_group_map):
-    """Decodes configuration groups inside ConfigGroup
-
-    Args:
-        config_group_map (str): Serialized ConfigGroup.groups object
-
-    Returns: map of configuration groups.
-    """
-    config_groups = {}
-    keys = config_group_map.keys()
-    for key in keys:
-        config_groups[key] = decode_config_group(config_group_map[key])
-    return config_groups
-
+    """Decodes configuration groups(map형) inside ConfigGroup"""
 
 def decode_config_group(proto_config_group):
-    """Decodes configuration group from config protos
-
-    Args:
-        proto_config_group (str): serialized ConfigGroup() object
-
-    Returns: deserialized config_groups dictionary
-    """
-
-    if not proto_config_group:
-        return None
-    config_group = {}
-    config_group['version'] = decode_version(proto_config_group.version)
-    config_group['groups'] = decode_config_groups(proto_config_group.groups)
-    config_group['values'] = decode_config_values(proto_config_group.values)
-    config_group['policies'] = \
-        decode_config_policies(proto_config_group.policies)
-    config_group['mod_policy'] = proto_config_group.mod_policy
-    return config_group
-
+    """Decodes configuration group(dictionary형) from config protos"""
 
 def decode_config_values(config_value_map):
-    """Decodes configuration values inside each configuration key
-
-    Args:
-        config_value_map (str): Serialized values map for each config key
-
-    Returns: map of configuration values for each key
-    """
-    config_values = {}
-    keys = config_value_map.keys()
-    for key in keys:
-        config_values[key] = decode_config_value(config_value_map[key], key)
-    return config_values
-
+    """Decodes config key:values(map형)"""
 
 def decode_config_value(proto_config_value, key):
-    """Decodes ConfigValue from map with a given key
-
-    Arguments:
-        proto_config_value (str): A bytes string of config_value
-        key (str): Map key for the configuration value
-
-    Returns: config_value: Dictionary of configuration value deserialized
-    """
-    config_value_key = key
-    config_value = {}
-    config_value['version'] = decode_version(proto_config_value.version)
-    config_value['mod_policy'] = proto_config_value.mod_policy
-    config_value['value'] = {}
-    if config_value_key == 'AnchorPeers':
-        anchor_peers = []
-        proto_anchor_peers = peer_configuration_pb2.AnchorPeers()
-        proto_anchor_peers.ParseFromString(proto_config_value.value)
-        if proto_anchor_peers and proto_anchor_peers.anchor_peers:
-            for peer in proto_anchor_peers.anchor_peers:
-                anchor_peer = {}
-                anchor_peer['host'] = peer.host
-                anchor_peer['port'] = peer.port
-                anchor_peers.append(anchor_peer)
-            config_value['value']['anchor_peers'] = anchor_peers
-    elif config_value_key == 'MSP':
-        msp_config = {}
-        proto_msp_config = msp_config_pb2.MSPConfig()
-        proto_msp_config.ParseFromString(proto_config_value.value)
-        if proto_msp_config.type == 0:
-            msp_config = decode_fabric_MSP_config(proto_msp_config.config)
-        config_value['value']['type'] = proto_msp_config.type
-        config_value['value']['config'] = msp_config
-    elif config_value_key == 'ConsensusType':
-        proto_consensus_type = orderer_configuration_pb2.ConsensusType()
-        proto_consensus_type.ParseFromString(proto_config_value.value)
-        config_value['value']['type'] = proto_consensus_type.type
-    elif config_value_key == 'BatchSize':
-        proto_batch_size = orderer_configuration_pb2.BatchSize()
-        proto_batch_size.ParseFromString(proto_config_value.value)
-        config_value['value']['max_message_count'] = \
-            proto_batch_size.max_message_count
-        config_value['value']['absolute_max_bytes'] = \
-            proto_batch_size.absolute_max_bytes
-        config_value['value']['preferred_max_bytes'] = \
-            proto_batch_size.preferred_max_bytes
-    elif config_value_key == 'BatchTimeout':
-        proto_batch_timeout = orderer_configuration_pb2.BatchTimeout()
-        proto_batch_timeout.ParseFromString(proto_config_value.value)
-        config_value['value']['timeout'] = proto_batch_timeout.timeout
-    elif config_value_key == 'ChannelRestrictions':
-        proto_channel_restrictions = \
-            orderer_configuration_pb2.ChannelRestrictions()
-        proto_channel_restrictions.ParseFromString(proto_config_value.value)
-        config_value['value']['max_count'] = \
-            str(proto_channel_restrictions.max_count)
-    elif config_value_key == 'Consortium':
-        consortium_name = common_configuration_pb2.Consortium()
-        consortium_name.ParseFromString(proto_config_value.value)
-        config_value['value']['name'] = consortium_name.name
-    elif config_value_key == 'HashingAlgorithm':
-        proto_hashing_algorithm = common_configuration_pb2.HashingAlgorithm()
-        proto_hashing_algorithm.ParseFromString(proto_config_value.value)
-        config_value['value']['name'] = proto_hashing_algorithm.name
-    elif config_value_key == 'BlockDataHashingStructure':
-        proto_blockdata_hashing_structure = \
-            common_configuration_pb2.BlockDataHashingStructure()
-        proto_blockdata_hashing_structure.ParseFromString(
-            proto_config_value.value)
-        config_value['value']['width'] = \
-            proto_blockdata_hashing_structure.width
-    elif config_value_key == 'OrdererAddresses':
-        orderer_addresses = common_configuration_pb2.OrdererAddresses()
-        orderer_addresses.ParseFromString(proto_config_value.value)
-        addresses = []
-        proto_addresses = orderer_addresses.addresses
-        if proto_addresses:
-            for address in proto_addresses:
-                addresses.append(address)
-            config_value['value']['addresses'] = addresses
-    else:
-        pass
-    return config_value
-
+    """Decodes key:ConfigValue(Dictionary형)"""
 
 def decode_config_policies(config_policy_map):
-    """Decodes list of configuration policies
-
-    Args:
-        config_policy_map (str): Serialized list of configuration policies
-
-    Returns: deserialized map of config policies.
-    """
-    config_policies = {}
-    keys = config_policy_map.keys()
-    for key in keys:
-        config_policies[key] = decode_config_policy(config_policy_map[key])
-    return config_policies
-
+    """Decodes list of configuration policies(map형)"""
 
 def decode_config_policy(proto_config_policy):
-    """Decodes config policy based on type of policy
-
-    Args:
-        proto_config_policy: Configuration policy bytes
-
-    Returns: deserialized config_policy based on policy type.
-    """
-    config_policy = {}
-    config_policy['version'] = decode_version(proto_config_policy.version)
-    config_policy['mod_policy'] = proto_config_policy.mod_policy
-    config_policy['policy'] = {}
-    if proto_config_policy.policy:
-        config_policy['policy']['type'] = proto_config_policy.policy.type
-        if (proto_config_policy.policy.type == policies_pb2.Policy.SIGNATURE):
-            config_policy['policy']['value'] = \
-                decode_signature_policy_envelope(
-                    proto_config_policy.policy.value)
-        elif (proto_config_policy.policy.type == policies_pb2.Policy.MSP):
-            proto_msp = policies_pb2.Policy()
-            proto_msp.ParseFromString(proto_config_policy.policy.value)
-        elif (proto_config_policy.policy.type ==
-              policies_pb2.Policy.IMPLICIT_META):
-            config_policy['policy']['value'] = \
-                decode_implicit_meta_policy(proto_config_policy.policy.value)
-        elif (proto_config_policy.policy.type == policies_pb2.Policy.UNKNOWN):
-            config_policy['policy']['value'] = 'Unknown'
-        else:
-            raise ValueError("Unknown policy type")
-    return config_policy
-
+    """Decodes config policy based on type of policy"""
 
 def decode_implicit_meta_policy(implicit_meta_policy_bytes):
     """Decodes implicit meta policy in a policy

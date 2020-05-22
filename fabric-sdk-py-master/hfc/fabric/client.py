@@ -46,13 +46,9 @@ _logger = logging.getLogger(__name__)
 _logger.setLevel(logging.DEBUG)
 _logger.addHandler(consoleHandler)
 
-
 class Client(object):
     """Main interaction handler with end user.
        Client can maintain several channels.
-
-    :param object:
-    :type object:
     """
 
     def __init__(self, net_profile=None):

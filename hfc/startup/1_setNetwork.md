@@ -22,6 +22,7 @@ PeerOrgs:
   Users:
     Count: 1
 ```
+환경변수 : FABRIC_CFG_PATH
 
 2.  MSP, 채널 설정 : configtx.yaml
 ```

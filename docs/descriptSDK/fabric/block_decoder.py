@@ -1,55 +1,46 @@
-# Copyright sudheesh.info 2018 All Rights Reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#      http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
-
 import logging
 import binascii
 import datetime
 from base64 import b64encode
 from datetime import timezone
-
-# Import required Peer Protos
+"""
+공통 프로토콜
+"""
+from hfc.protos.common import common_pb2
+from hfc.protos.common import configtx_pb2
+from hfc.protos.common import policies_pb2
+from hfc.protos.common import configuration_pb2 as common_configuration_pb2
+"""
+피어 노드를 위한 프로토콜
+"""
 from hfc.protos.peer import chaincode_event_pb2
 from hfc.protos.peer import transaction_pb2
 from hfc.protos.peer import proposal_pb2
 from hfc.protos.peer import proposal_response_pb2
 from hfc.protos.peer import configuration_pb2 as peer_configuration_pb2
 from hfc.protos.peer import events_pb2
-
-# Import required MSP Protos
+"""
+MSP를 위한 프로토콜
+"""
 from hfc.protos.msp import msp_principal_pb2
 from hfc.protos.msp import msp_config_pb2
 from hfc.protos.msp import identities_pb2
-
-# Import required Common Protos
-from hfc.protos.common import common_pb2
-from hfc.protos.common import configtx_pb2
-from hfc.protos.common import policies_pb2
-from hfc.protos.common import configuration_pb2 as common_configuration_pb2
-
-# Import required Orderer Protos
+"""
+orderer를 위한 프로토콜
+"""
 from hfc.protos.orderer import configuration_pb2 as orderer_configuration_pb2
-
-# Import required Ledger Protos
+"""
+분산원장을 위한 프로토콜
+"""
 from hfc.protos.ledger.rwset import rwset_pb2
 from hfc.protos.ledger.rwset.kvrwset import kv_rwset_pb2
-
-# Import required Gossip Protos
+"""
+가십 프로토콜
+"""
 from hfc.protos.gossip import message_pb2
 
+"로그 객체"
 _logger = logging.getLogger(__name__ + ".block_decoder")
-
 
 class BlockDecoder(object):
     """
@@ -59,13 +50,7 @@ class BlockDecoder(object):
     @staticmethod
     def decode(block_bytes):
         """
-        Constructs a JSON Object containing all decoded values from
-        protobuf encoded `Block` bytes.
-
-        Args:
-            block_bytes (bytes): Block instance
-
-        Returns: Dictionary containing decoded Block instance.
+        직렬화(byte)된 블록 객체 --> JSON화(딕셔너리형)
         """
         block = {}
         try:

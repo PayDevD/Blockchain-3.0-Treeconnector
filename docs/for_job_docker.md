@@ -78,11 +78,17 @@ docker images
 docker rmi <이미지명>
 docker images
 ```
+# 깃랩의 컨테이너 레지스트리에 로그인
+```
+docker login registry.gitlab.com
+```
 
 # 이미지를 깃랩 형식에 맞춰서 빌드, 푸쉬
 ```
 docker build --tag <원격저장소 도메인>/[그룹명]/[프로젝트명]/<이미지명>
+docker build --tag registry.gitlab.com/bloggerjp/blockchain3.0project
 docker push <원격저장소 도메인>/[그룹명]/[프로젝트명]/<이미지명>
+docker push registry.gitlab.com/bloggerjp/blockchain3.0project
 ```
 
 * 도커 설치할 때 /home/docker 로 도커 관련 파일 저장소를 옮겼으니, 필요시 참고

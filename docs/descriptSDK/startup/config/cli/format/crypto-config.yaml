@@ -1,0 +1,19 @@
+OrdererOrgs: ### 오더러 노드들의 조직 목록
+- Name: Orderer
+  Domain: whole_network.com
+  CA: ### 조직의 rootCA 설정
+    Country: US # 국가 약어(2글자)
+    Province: California
+    Locality: San Francisco
+  Specs:
+    - Hostname: Orderer # 서브도메인명(필수)
+
+PeerOrgs: ### 피어 노드들의 조직 목록
+- Name: Peers_org1
+  Domain: peers_org1.whole_network.com
+  Template: ### 여러 피어노드를 자동으로 실행
+    Count: 2 ## 피어노드 개수
+    Start : 0 ## 호스트명 뒤에 붙는 숫자의 시작
+  Users: ### 일반 사용자
+    Count: 1 ## 일반 사용자 계정 수
+  EnableNodeOUs: true

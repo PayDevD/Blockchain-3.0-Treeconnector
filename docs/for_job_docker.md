@@ -93,7 +93,6 @@ docker push registry.gitlab.com/bloggerjp/blockchain3.0project
 
 * 도커 설치할 때 /home/docker 로 도커 관련 파일 저장소를 옮겼으니, 필요시 참고
 * next.js --> RESTful 통신 --> django(하이퍼레저 client SDK) --> 조작 --> 하이퍼레저 시스템의 노드들
-* next.js와 django 연동 시 nginx 필요 없는지?
 * 프론트엔드 벡엔드 나뉘어져 있으므로 모든 것을 log 로 찍을 수 있음
 postman 설치
 ```

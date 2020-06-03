@@ -1,0 +1,249 @@
+# Copyright IBM Corp All Rights Reserved
+# SPDX-License-Identifier: Apache-2.0
+version: '2'
+services:
+##################################################
+  ca-base:
+    image: hyperledger/fabric-ca
+    environment:
+      - FABRIC_CA_HOME=/etc/hyperledger/ca
+      - FABRIC_CA_SERVER_TLS_ENABLED=true
+    expose:
+      - "50999"
+    command: sh -c "fabric-ca-server start -b admin:adminpw"
+
+  ca-doctors:
+    extends:
+      service: ca-base
+    container_name: ca.doctors.treeconnector.com
+    ports:
+      - 51000:50999
+    volumes:
+        - ../cert_key/peerOrganizations/doctors.treeconnector.com/ca/:/etc/hyperledger/ca/cert_key
+    environment:
+        - FABRIC_CA_SERVER_CA_NAME=ca-doctors
+        -  FABRIC_CA_SERVER_CA_CERTFILE=/etc/hyperledger/ca/cert_key/ca.doctors.treeconnector.com-cert.pem
+        -  FABRIC_CA_SERVER_CA_KEYFILE=/etc/hyperledger/ca/cert_key/b2218646eff9a2cb476fb251436882d93d22cc6dc75640f48a608afd88d72646_sk
+
+  ca-treats:
+    extends:
+      service: ca-base
+    container_name: ca.treats.treeconnector.com
+    ports:
+      - 52000:50999
+    volumes:
+        - ../cert_key/peerOrganizations/treats.treeconnector.com/ca/:/etc/hyperledger/ca/cert_key
+    environment:
+        - FABRIC_CA_SERVER_CA_NAME=ca-treats
+        -  FABRIC_CA_SERVER_CA_CERTFILE=/etc/hyperledger/ca/cert_key/ca.treats.treeconnector.com-cert.pem
+        -  FABRIC_CA_SERVER_CA_KEYFILE=/etc/hyperledger/ca/cert_key/fc07656751c06a5fe0dc20afcc1071c9c6acb21885ff68f3524f658522985638_sk
+
+  ca-condomngs:
+    extends:
+      service: ca-base
+    container_name: ca.condomngs.treeconnector.com
+    ports:
+      - 53000:50999
+    volumes:
+        - ../cert_key/peerOrganizations/condomngs.treeconnector.com/ca/:/etc/hyperledger/ca/cert_key
+    environment:
+        - FABRIC_CA_SERVER_CA_NAME=ca-condomngs
+        -  FABRIC_CA_SERVER_CA_CERTFILE=/etc/hyperledger/ca/cert_key/ca.condomngs.treeconnector.com-cert.pem
+        -  FABRIC_CA_SERVER_CA_KEYFILE=/etc/hyperledger/ca/cert_key/ 57cf571611ed5cb393a32a2e22c42f9989446b774e11fe990099201ef3ebe830_sk
+
+  ca-individuals:
+    extends:
+      service: ca-base
+    container_name: ca.individuals.treeconnector.com
+    ports:
+      - 54000:50999
+    volumes:
+        - ../cert_key/peerOrganizations/individuals.treeconnector.com/ca/:/etc/hyperledger/ca/cert_key
+    environment:
+        - FABRIC_CA_SERVER_CA_NAME=ca-individuals
+        -  FABRIC_CA_SERVER_CA_CERTFILE=/etc/hyperledger/ca/cert_key/ca.individuals.treeconnector.com-cert.pem
+        -  FABRIC_CA_SERVER_CA_KEYFILE=/etc/hyperledger/ca/cert_key/729e72caaa8642a4a3b0daa4333762fa6caccc48da713a21450c6da4fc5ad4e9_sk
+#########################################
+  orderer-base:
+    image: hyperledger/fabric-orderer
+    environment:
+      - ORDERER_GENERAL_LOGLEVEL=DEBUG
+      - ORDERER_GENERAL_LISTENADDRESS=0.0.0.0
+      - ORDERER_GENERAL_LISTENPORT=33333
+      - ORDERER_GENERAL_GENESISMETHOD=file
+      - ORDERER_GENERAL_GENESISFILE=/etc/hyperledger/orderer/orderer.genesis.block
+      - ORDERER_GENERAL_LOCALMSPID=ordererMSP
+      - ORDERER_GENERAL_LOCALMSPDIR=/etc/hyperledger/orderer/msp
+      - ORDERER_GENERAL_LEDGERTYPE=file
+      - ORDERER_GENERAL_BATCHTIMEOUT=2s
+      - ORDERER_GENERAL_MAXMESSAGECOUNT=10
+      - ORDERER_GENERAL_MAXWINDOWSIZE=1000
+      - ORDERER_GENERAL_TLS_ENABLED=true
+      - ORDERER_GENERAL_TLS_PRIVATEKEY=/etc/hyperledger/orderer/tls/server.key
+      - ORDERER_GENERAL_TLS_CERTIFICATE=/etc/hyperledger/orderer/tls/server.crt
+      - ORDERER_GENERAL_TLS_ROOTCAS=[/etc/hyperledger/orderer/tls/ca.crt]
+    expose:
+      - "33333"
+    volumes:
+      - ../channel-info/orderer.genesis.block:/etc/hyperledger/orderer/orderer.genesis.block
+      - ../cert_key/ordererOrganizations/treeconnector.com/orderers/orderer.treeconnector.com/:/etc/hyperledger/orderer
+    command: orderer start
+
+  orderer:
+    extends:
+      service: orderer-base
+    container_name: orderer.treeconnector.com
+    working_dir: /etc/hyperledger/orderer
+    ports:
+      - 33333:33333
+#######################################
+  peer-base:
+    image: hyperledger/fabric-peer
+    environment:
+      - CORE_LOGGING_LEVEL=DEBUG
+      - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
+      - CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=${COMPOSE_PROJECT_NAME}_basic
+
+      - CORE_LEDGER_STATE_STATEDATABASE=CouchDB
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_COUCHDBADDRESS=couchdb:44444
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_USERNAME=admin
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_PASSWORD=passwd
+
+      - CORE_PEER_GOSSIP_USELEADERELECTION=true
+      - CORE_PEER_GOSSIP_ORGLEADER=false  # this node is the group leader, default to false
+      - CORE_PEER_PROFILE_ENABLED=true
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_TLS_CLIENTAUTHREQUIRED=false
+      - CORE_PEER_TLS_CERT_FILE=/etc/hyperledger/tls/server.crt
+      - CORE_PEER_TLS_KEY_FILE=/etc/hyperledger/tls/server.key
+      - CORE_PEER_TLS_ROOTCERT_FILE=/etc/hyperledger/tls/ca.crt
+    expose:
+      - "50000"  # Rest
+      - "50001"  # Grpc
+      - "50002"  # Peer CLI
+      - "50003"  # Peer Event
+      - "50004"  # eCAP
+      - "50005"  # eCAA
+      - "50006"  # tCAP
+      - "50007"  # eCAA
+      - "50008"  # tlsCAP
+      - "50009"  # tlsCAA
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    working_dir: /etc/hyperledger
+    command: peer node start
+
+  peer0.doctors:
+    container_name: peer0.doctors.treeconnector.com
+    extends:
+        service: peer-base
+    ports:
+      - 51001:50001
+      - 51003:50003
+    volumes:
+      - ../cert_key/peerOrganizations/doctors.treeconnector.com/peers/peer0.doctors.treeconnector.com/tls:/etc/hyperledger/msp/peers/tls
+      - ../cert_key/peerOrganizations/doctors.treeconnector.com/peers/peer0.doctors.treeconnector.com/msp:/etc/hyperledger/msp/peers/msp
+      - ../cert_key/peerOrganizations/doctors.treeconnector.com/users:/etc/hyperledger/msp/users
+    environment:
+      - CORE_PEER_ID=peer0.doctors.treeconnector.com
+      - CORE_PEER_ADDRESS=peer0.doctors.treeconnector.com:50001
+      - CORE_PEER_LOCALMSPID=doctorsMSP
+      - CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/msp/peers
+      - CORE_PEER_ADDRESSAUTODETECT=false
+
+  peer0.treats:
+    container_name: peer0.treats.treeconnector.com
+    extends:
+        service: peer-base
+    ports:
+      - 52001:50001
+      - 52003:50003
+    volumes:
+      - ../cert_key/peerOrganizations/treats.treeconnector.com/peers/peer0.treats.treeconnector.com/tls:/etc/hyperledger/tls
+      - ../cert_key/peerOrganizations/treats.treeconnector.com/peers/peer0.treats.treeconnector.com/msp:/etc/hyperledger/msp/peers
+      - ../cert_key/peerOrganizations/treats.treeconnector.com/users:/etc/hyperledger/msp/users
+    environment:
+      - CORE_PEER_ID=peer0.treats.treeconnector.com
+      - CORE_PEER_LOCALMSPID=treatsMSP
+      - CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/msp/peers/
+      - CORE_PEER_ADDRESS=peer0.treats.treeconnector.com:50001
+      - CORE_PEER_ADDRESSAUTODETECT=false
+
+  peer0.condomngs:
+    container_name: peer0.condomngs.treeconnector.com
+    extends:
+        service: peer-base
+    ports:
+      - 53001:50001
+      - 53003:50003
+    volumes:
+      - ../cert_key/peerOrganizations/condomngs.treeconnector.com/peers/peer0.condomngs.treeconnector.com/tls:/etc/hyperledger/tls
+      - ../cert_key/peerOrganizations/condomngs.treeconnector.com/peers/peer0.condomngs.treeconnector.com/msp:/etc/hyperledger/msp/peers
+      - ../cert_key/peerOrganizations/condomngs.treeconnector.com/users:/etc/hyperledger/msp/users
+    environment:
+      - CORE_PEER_ID=peer0.condomngs.treeconnector.com
+      - CORE_PEER_LOCALMSPID=condomngsMSP
+      - CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/msp/peers/
+      - CORE_PEER_ADDRESS=peer0.condomngs.treeconnector.com:50001
+      - CORE_PEER_ADDRESSAUTODETECT=false
+
+  peer0.individuals:
+    container_name: peer0.individuals.treeconnector.com
+    extends:
+        service: peer-base
+    ports:
+      - 54001:50001
+      - 54003:50003
+    volumes:
+      - ../cert_key/peerOrganizations/individuals.treeconnector.com/peers/peer0.individuals.treeconnector.com/tls:/etc/hyperledger/tls
+      - ../cert_key/peerOrganizations/individuals.treeconnector.com/peers/peer0.individuals.treeconnector.com/msp:/etc/hyperledger/msp/peers
+      - ../cert_key/peerOrganizations/individuals.treeconnector.com/users:/etc/hyperledger/msp/users
+    environment:
+      - CORE_PEER_ID=peer0.individuals.treeconnector.com
+      - CORE_PEER_LOCALMSPID=individualsMSP
+      - CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/msp/peers/
+      - CORE_PEER_ADDRESS=peer0.individuals.treeconnector.com:50001
+      - CORE_PEER_ADDRESSAUTODETECT=false
+#############################################
+  hlf-py-api:
+    container_name: hlf-py-api
+    image: hyperledger/fabric-tools
+    tty: true
+    environment:
+      - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
+      - CORE_LOGGING_LEVEL=DEBUG
+      - CORE_CHAINCODE_KEEPALIVE=10
+
+      - CORE_PEER_ID=hlf-py-api
+      - CORE_PEER_ADDRESS=peer0.doctors.treeconnector.com:50001
+      - CORE_PEER_LOCALMSPID=doctorsMSP
+      - CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/msp/users/Admin@doctors.treeconnector.com/msp
+
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_TLS_KEY_FILE=/etc/hyperledger/tls/server.crt
+      - CORE_PEER_TLS_CERT_FILE=/etc/hyperledger/tls/server.key
+      - CORE_PEER_TLS_ROOTCERT_FILE=/etc/hyperledger/tls/ca.crt
+
+      - GOPATH=/opt/gopath
+
+    working_dir: /opt/backend
+    command: /bin/bash
+    volumes:
+        - /var/run/:/host/var/run/
+        - ../../:/opt/backend
+        - ../chaincode/:/opt/chaincode
+        - ../cert_key:/etc/hyperledger/cert_key
+        - ../channel-info/:/etc/hyperledger/channel-info
+    depends_on:
+      - orderer
+      - peer0.doctors
+      - couchdb
+###########################################
+  couchdb:
+    container_name: couchdb0
+    image: hyperledger/fabric-couchdb
+    environment:
+      - COUCHDB_USER=admin
+      - COUCHDB_PASSWORD=passwd
+    ports:
+      - 44444:44444

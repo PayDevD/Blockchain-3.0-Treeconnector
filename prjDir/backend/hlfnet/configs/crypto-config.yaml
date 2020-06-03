@@ -1,0 +1,36 @@
+OrdererOrgs:
+- Name: orderers
+  Domain: treeconnector.com
+  EnableNodeOUs: true
+  Specs:
+    - Hostname: orderer
+
+PeerOrgs:
+- Name: docters
+  Domain: docters.treeconnector.com
+  EnableNodeOUs: true
+  Template:
+    Count: 2
+  Users:
+    Count: 1
+- Name: treats
+  Domain: treats.treeconnector.com
+  EnableNodeOUs: true
+  Template:
+    Count: 2
+  Users:
+    Count: 1
+- Name: condomngs
+  Domain: condomngs.treeconnector.com
+  EnableNodeOUs: true
+  Template:
+    Count: 2
+  Users:
+    Count: 1
+- Name: individuals
+  Domain: individuals.treeconnector.com
+  EnableNodeOUs: true
+  Template:
+    Count: 2
+  Users:
+    Count: 1

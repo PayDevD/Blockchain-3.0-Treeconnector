@@ -1,0 +1,69 @@
+Organizations:
+    - &orderers
+        Name: org_orderers_MSP
+        ID: org_orderers_MSP
+        MSPDir: ../cert_key/ordererOrganizations/treeconnector.com/msp
+    - &doctors
+        Name: org_doctors_MSP
+        ID: org_doctors_MSP
+        MSPDir: ../cert_key/peerOrganizations/doctors.treeconnector.com/msp
+        AnchorPeers: # for 조직 간 gossip 통신 : 제네시스 블록에만 인코딩됨
+        - Host: peer0.doctors.treeconnector.com
+          Port: 50001
+    - &treats
+        Name: org_treats_MSP
+        ID: org_treats_MSP
+        MSPDir: ../cert_key/peerOrganizations/treats.treeconnector.com/msp
+        AnchorPeers:
+        - Host: peer0.treats.treeconnector.com
+          Port: 50001
+    - &condomngs
+        Name: org_condomngs_MSP
+        ID: org_condomngs_MSP
+        MSPDir: ../cert_key/peerOrganizations/condomngs.treeconnector.com/msp
+        AnchorPeers:
+        - Host: peer0.condomngs.treeconnector.com
+          Port: 50001
+    - &individuals
+        Name: org_individuals_MSP
+        ID: org_individuals_MSP
+        MSPDir: ../cert_key/peerOrganizations/individuals.treeconnector.com/msp
+        AnchorPeers:
+        - Host: peer0.individuals.treeconnector.com
+          Port: 50001
+Application: &ApplicationDefaults
+    Organizations:
+Orderer: &OrdererDefaults
+    OrdererType: solo
+    Addresses:
+        - orderer.treeconnector.com: 33333
+    BatchTimeout: 100ms
+    BatchSize:
+        MaxMessageCount: 10
+        AbsoluteMaxBytes: 99 MB
+        PreferredMaxBytes: 512 KB
+    Kafka:
+        Brokers:
+            - 127.0.0.1:22222
+Profiles:
+    TreeConnOrdererGenesis:
+        Orderer:
+            <<: *OrdererDefaults
+            Organizations:
+                - *orderers
+        Consortiums:
+            treeConnConsortium:
+                Organizations:
+                    - *doctors
+                    - *treats
+                    - *condomngs
+                    - *individuals
+    TreeConnAppChannel:
+        Consortium: TreeConnConsortium
+        Application:
+            <<: *ApplicationDefaults
+            Organizations:
+                - *doctors
+                - *treats
+                - *condomngs
+                - *individuals

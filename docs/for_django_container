@@ -1,0 +1,6 @@
+cd prjDir/backend/hlfnet/scripts
+sh start*
+docker exec -it hlf-py-api bash
+cd hlf_py*
+sh install.sh
+

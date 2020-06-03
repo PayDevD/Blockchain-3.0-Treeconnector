@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+
+export SYS_CHANNEL ORDERER_GENSIS ORDERER_GENSIS_PROFILE APP_CHANNEL
+export APP_CHANNEL_PROFILE UPDATE_ANCHOR_ORG1_TX UPDATE_ANCHOR_ORG2_TX
+export CHANNEL_ARTIFACTS ORG1MSP ORG2MSP
+
+SYS_CHANNEL='syschannel'
+ORDERER_GENSIS=orderer.genesis.block
+ORDERER_GENSIS_PROFILE=treeconnOrdererGenesis
+APP_CHANNEL="appchannel"
+APP_CHANNEL_PROFILE=treeconnChannel
+UPDATE_ANCHOR_ORG1_TX=doctorsMSPanchors.tx
+UPDATE_ANCHOR_ORG2_TX=treatsMSPanchors.tx
+UPDATE_ANCHOR_ORG3_TX=condomngsMSPanchors.tx
+UPDATE_ANCHOR_ORG4_TX=individualsMSPanchors.tx
+CHANNEL_ARTIFACTS=channel-artifacts
+ORG1MSP="doctorsMSP"
+ORG2MSP="treatsMSP"
+ORG3MSP="condomngsMSP"
+ORG4MSP="individualsMSP"

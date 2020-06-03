@@ -1,5 +1,4 @@
-"""hlf_pyapi URL Configuration
-The `urlpatterns` list routes URLs to views.
+"""
 Function views
     1. Add an import:  from my_app import views
     2. Add a URL to urlpatterns:  path('', views.home, name='home')
@@ -15,5 +14,5 @@ from django.urls import path, include
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/', include('appToCall.urls')),
+    path('api/', include('restfulApp.urls')),
 ]

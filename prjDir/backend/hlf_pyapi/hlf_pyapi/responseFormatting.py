@@ -18,8 +18,10 @@ class ResponseFormattingMiddleware:
     def __call__(self, request):
         response = None
         if not response:
+            "뷰가 호출되기 전"
             response = self.get_response(request)
         if hasattr(self, 'process_response'):
+            "뷰타 호출되고 나서"
             response = self.process_response(request, response)
         return response
 

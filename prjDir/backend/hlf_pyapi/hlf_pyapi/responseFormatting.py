@@ -28,8 +28,7 @@ class ResponseFormattingMiddleware:
     def process_response(self, request, response):
         """
         API_URLS 와 method 가 확인이 되면
-        response 로 들어온 data 형식에 맞추어
-        response_format 에 넣어준 후 response 반환
+        response 보낼 data를 response_format 에 넣어서 response 반환
         """
         path = request.path_info.lstrip('/')
         valid_urls = (url.match(path) for url in self.API_URLS)

@@ -46,50 +46,64 @@ class User_Viewset(viewsets.ViewSet):
 
 class Tree_Viewset(viewsets.ViewSet):
 
-	def __init__(self):
-		self._TreeManage = _2_tree.TreeManage()
+	def __init__(self, request):
+		"""
+		orgName에 따라 나무의사 또는 개인을 구분해 체인코드 호출가능
+		"""
+		userID = request['userID']
+		orgName = request['orgName']
+		self._TreeManage = _2_tree.TreeManage(userID,orgName)
 
 	def list(self, request, response):
-
+		if request['MyTreeList']:
+			response = self._TreeManage.getAllTree()
+		else:
+			response = self._TreeManage.getAllMyTree()
 		return response
 
 	def retrieve(self, request, response):
-
+		treeID = response['treeID']
+		response = self._TreeManage.getOneTree(treeID)
 		return response
 
 	def create(self, request, response):
-
+		treeID = response['treeID']
+		treeInfos = response['treeInfos']
+		response = self._TreeManage.enrollMyTree(treeID,treeInfos))
 		return response
 
 	def update(self, request, response):
-
+		treeID = response['treeID']
+		treeInfos = response['treeInfos']
+		response = self._TreeManage.updateMyTree(treeID,treeInfos)
 		return response
 
 	def destroy(self, request, response):
-
+		treeID = response['treeID']
+		response = self._TreeManage.delMyTree(treeID)
 		return response
 
 class Diagnose_Viewset(viewsets.ViewSet):
 
 	def __init__(self):
-		self._DiagnoseManage = _2_diagnose.DiagnoseManage()
+		self._DiagnoseManage = _3_diagnose.DiagnoseManage()
 
 	def list(self, request, response):
-
+		response = self._DiagnoseManage.getAllDoctors()
 		return response
 
 	def retrieve(self, request, response):
-
+		response = self._DiagnoseManage.showOneDoctors()
 		return response
 
 	def create(self, request, response):
-
+		response = self._DiagnoseManage.enrollNewDiagnose()
 		return response
 
 	def update(self, request, response):
-
+		response = self._DiagnoseManage.updateDiagnose()
 		return response
 
 	def destroy(self, request, response):
-
+		response = self._DiagnoseManage.deleteDiagnose()
 		return response

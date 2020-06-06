@@ -1,21 +1,79 @@
-"""
-모델 클래스의 데이터(queryset) + 직렬화 포맷팅(serializer_class) --> JSON으로 전송할 객체
-"""
+from rest_framework.status import is_client_error, is_success
 from rest_framework import viewsets
 """
-뷰(get, put) 여러 개 --> 뷰set(read, update) 하나로 합치기
-list뷰(list, create) + detail뷰(retrieve, update, destroy) 기능 모두 지원
+특정 Viewset(같은 URL)로 들어온 요청 --> HTTP method에 따라 분리하여 응답 반환
+- list() : 모든 자원들의 목록(many=True)
+- retrieve() : 주어진 자원 보기
+- create() : 새 자원 생성
+- update() : 자원 업데이트
+- destroy() : 자원 삭제
 """
-from ._1_models import Model_test1
-from ._3_serializers import Model1_Serializer
-class Model1_DetailView(viewsets.ModelViewSet):
-	queryset = Model_test1.objects.all()
-	serializer_class = Model1_Serializer
-"""
-HyperlinkedModelSerializer
-"""
-from ._1_models import Student
-from ._3_serializers import Student_Serializer_link
-class Student_Viewset(viewsets.ModelViewSet):
-	queryset = Student.objects.all()
-	serializer_class = Student_Serializer_link
+from . import _1_user, _2_tree, _3_diagnose
+
+class User_Viewset(viewsets.ViewSet):
+
+	def __init__(self):
+		slef._UserManage = _1_user.UserManage()
+
+	def list(self, request, response):
+		return self._UserManage.getAllUser()
+
+	def retrieve(self, request, response):
+		userName = request['userName']
+		return self._UserManage.getOneUser(userName)
+
+	def create(self, request, response):
+		userName = request['userName']
+		return self._UserManage.enrollUser(userName)
+
+	def update(self, request, response):
+		userName = request['userName']
+		return self._UserManage.updateUser(userName)
+
+	def destroy(self, request, response):
+		userName = request['userName']
+		return self._UserManage.delUser(userName)
+
+class Tree_Viewset(viewsets.ViewSet):
+
+	def list(self, request, response):
+
+		return response
+
+	def retrieve(self, request, response):
+
+		return response
+
+	def create(self, request, response):
+
+		return response
+
+	def update(self, request, response):
+
+		return response
+
+	def destroy(self, request, response):
+
+		return response
+
+class Diagnose_Viewset(viewsets.ViewSet):
+
+	def list(self, request, response):
+
+		return response
+
+	def retrieve(self, request, response):
+
+		return response
+
+	def create(self, request, response):
+
+		return response
+
+	def update(self, request, response):
+
+		return response
+
+	def destroy(self, request, response):
+
+		return response

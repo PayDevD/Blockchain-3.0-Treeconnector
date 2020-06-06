@@ -11,11 +11,11 @@ req에서 아무 조건 없으면 그냥 가능한거 다 보내기
 res
 
 tree {
-	id(String),
+	id(String), ----> treeID로 바꿈
 	ownerId(String),
 	birthday(Date),
 	location(String),
-	kind(String)
+	kind(String)   ----> treetype으로 바꿈
 	
 	diagnosis {
 		date(Date),

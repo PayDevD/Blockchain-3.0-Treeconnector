@@ -1,4 +1,9 @@
 from rest_framework.status import is_client_error, is_success
+"""
+응답 포맷 맞출수도 있음(시간상 적용하지는 않음)
+is_success(response.status_code)
+is_client_error(response.status_code)
+"""
 from rest_framework import viewsets
 """
 특정 Viewset(같은 URL)로 들어온 요청 --> HTTP method에 따라 분리하여 응답 반환
@@ -13,28 +18,36 @@ from . import _1_user, _2_tree, _3_diagnose
 class User_Viewset(viewsets.ViewSet):
 
 	def __init__(self):
-		slef._UserManage = _1_user.UserManage()
+		self._UserManage = _1_user.UserManage()
 
 	def list(self, request, response):
-		return self._UserManage.getAllUser()
+		response = self._UserManage.getAllUser()
+		return response
 
 	def retrieve(self, request, response):
-		userName = request['userName']
-		return self._UserManage.getOneUser(userName)
+		userName = request['userID']
+		response = self._UserManage.getOneUser(userName)
+		return response
 
 	def create(self, request, response):
-		userName = request['userName']
-		return self._UserManage.enrollUser(userName)
+		userName = request['userID']
+		response = self._UserManage.enrollUser(userName)
+		return response
 
 	def update(self, request, response):
-		userName = request['userName']
-		return self._UserManage.updateUser(userName)
+		userName = request['userID']
+		response = self._UserManage.updateUser(userName)
+		return response
 
 	def destroy(self, request, response):
-		userName = request['userName']
-		return self._UserManage.delUser(userName)
+		userName = request['userID']
+		response = self._UserManage.delUser(userName)
+		return response
 
 class Tree_Viewset(viewsets.ViewSet):
+
+	def __init__(self):
+		self._TreeManage = _2_tree.TreeManage()
 
 	def list(self, request, response):
 
@@ -57,6 +70,9 @@ class Tree_Viewset(viewsets.ViewSet):
 		return response
 
 class Diagnose_Viewset(viewsets.ViewSet):
+
+	def __init__(self):
+		self._DiagnoseManage = _2_diagnose.DiagnoseManage()
 
 	def list(self, request, response):
 

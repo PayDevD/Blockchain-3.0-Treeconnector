@@ -43,31 +43,6 @@ class ChanincodeManage():
         """
         return response
 
-    def get_peer_joined_channel():
-        response = loop.run_until_complete(cli.query_channels(
-               requestor=org1_admin,
-               peers=['peer0.org1.example.com'],
-               decode=True
-               ))
-        """
-        peer 노드들이 참여하고 있는 채널 정보 조회
-        channels {
-            channel_name: "businesschannel"
-        }
-        """
-        return response
-    def get_channel_info():
-        response = loop.run_until_complete(cli.get_channel_config(
-               requestor=org1_admin,
-               channel_name='businesschannel',
-               peers=['peer0.org1.example.com'],
-               decode=True
-               ))
-        """
-        채널 이름으로 특정 채널 정보 조회
-        """
-        return response
-
     def get_block_hash():
         response = loop.run_until_complete(cli.query_info(
                requestor=org1_admin,

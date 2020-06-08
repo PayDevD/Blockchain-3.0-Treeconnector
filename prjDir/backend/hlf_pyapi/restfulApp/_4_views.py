@@ -62,24 +62,24 @@ class Tree_Viewset(viewsets.ViewSet):
 		return response
 
 	def retrieve(self, request, response):
-		treeID = response['treeID']
+		treeID = request['treeID']
 		response = self._TreeManage.getOneTree(treeID)
 		return response
 
 	def create(self, request, response):
-		treeID = response['treeID']
-		treeInfos = response['treeInfos']
+		treeID = request['treeID']
+		treeInfos = request['treeInfos']
 		response = self._TreeManage.enrollMyTree(treeID,treeInfos))
 		return response
 
 	def update(self, request, response):
-		treeID = response['treeID']
-		treeInfos = response['treeInfos']
+		treeID = request['treeID']
+		treeInfos = request['treeInfos']
 		response = self._TreeManage.updateMyTree(treeID,treeInfos)
 		return response
 
 	def destroy(self, request, response):
-		treeID = response['treeID']
+		treeID = request['treeID']
 		response = self._TreeManage.delMyTree(treeID)
 		return response
 

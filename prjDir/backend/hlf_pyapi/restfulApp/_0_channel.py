@@ -1,11 +1,12 @@
 import asyncio
 from hfc.fabric import Client
+
+from . import _0_chaincode, _0_channel,_1_user
 """
 체인코드에 날리는 트랜잭션 관련 코드 : 체인코드는 미리 설치된 상태여야
 """
-HLF_NET_PATH="opt/fixtures/network.json"
 CHANNEL_CONFIG_PATH = '/opt/fixtures/e2e_cli/configtx.yaml'
-cli = Client(net_profile=HLF_NET_PATH)
+cli = _1_user.cli
 org1_admin = cli.get_user('org1.example.com', 'Admin')
 
 class ChannelManage():

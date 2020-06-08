@@ -37,16 +37,27 @@ MIDDLEWARE = [
     #'responseFormatting.ResponseFormattingMiddleware',
 ]
 REST_FRAMEWORK = {
-	'DEFAULT_PERMISSION_CLASSES': [
-		'rest_framework.permissions.AllowAny',
-	]
+    'DEFAULT_PERMISSION_CLASSES': [],
+    'DEFAULT_AUTHENTICATION_CLASSES': [],
+    'UNAUTHENTICATED_USER': None,
 }
+"""
+'DEFAULT_PERMISSION_CLASSES': [
+    'rest_framework.permissions.AllowAny',
+],
+'DEFAULT_PERMISSION_CLASSES': [],
+'DEFAULT_AUTHENTICATION_CLASSES': [],
+'UNAUTHENTICATED_USER': None,
+"""
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
+        'NAME': ':memory:',
     }
 }
+"""
+os.path.join(BASE_DIR, 'db.sqlite3')
+"""
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',

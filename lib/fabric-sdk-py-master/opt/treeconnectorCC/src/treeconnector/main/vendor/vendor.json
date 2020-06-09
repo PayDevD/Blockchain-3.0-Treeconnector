@@ -1,0 +1,23 @@
+{
+	"comment": "",
+	"ignore": "test",
+	"package": [
+		{
+			"checksumSHA1": "OoMUQ1Vnt/5gzbvdsOZz6zKShz4=",
+			"path": "github.com/jinzhu/inflection",
+			"revision": "196e6ce06ca4513fbcfcbc35dc15f66074df47c9",
+			"revisionTime": "2020-02-16T10:24:04Z"
+		},
+		{
+			"checksumSHA1": "DpQfWwkS/lLVm8JBtXNIfgHeLYE=",
+			"path": "treeconnector",
+			"revision": ""
+		},
+		{
+			"checksumSHA1": "dyZfyYRygBLO73p8duGjSSCbMWU=",
+			"path": "treeconnector/chaincode",
+			"revision": ""
+		}
+	],
+	"rootPath": "treeconnector/main"
+}

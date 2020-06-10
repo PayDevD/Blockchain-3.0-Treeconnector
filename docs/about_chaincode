@@ -1,0 +1,14 @@
+체인코드 설치는 
+treeconnectorCC/src/treeconnector/main
+을 경로로 지정
+
+체인코드에 들어있는 struct는 모두 4가지로
+User, Tree, Diagnosis, Treatment이며, 각각 Add(생성), Get(항목 1개 조회, Id로 찾아옴), List(목록을 조회) 메소드로 되어있음.
+
+예를 들어 User 에 관해
+AddUser, GetUser, ListUsers 라는 체인코드 메소드명으로 되어있음
+
+이 모두에 대해 구현할 수 없다면, 모두 같은 패턴으로 함수 호출이 가능하므로 하나의 struct에 대해서만 구현을 해놔도 제가 보면서 따라하며 구현할 수 있을 거 같네요
+
+struct의 필드와 함수형태는 
+ treeconnectorCC/src/treeconnector/main/vendor/treeconnector/core.go 에 나와있고, go 언어 몰라도 충분히 이해 가능할거라고 생각합니다.

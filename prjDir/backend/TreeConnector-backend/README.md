@@ -1,18 +1,18 @@
-## Hyperledger Fabric Library
+## Treeconnector backend
 
 ### 1. npm install
 
-- /fabric-book/library/javascript
+- /TreeConnector-backend/treeconnector/javascript
 
 ```bash
-cd fabric-book/library/javascript
+cd TreeConnector-backend/treeconnector/javascript
 npm install
 ```
 
 ### 2. Enroll Admin & Register User
 
-- in 'fabric-book/library'
-  - because we'll make 'Wallet' on 'fabric-book/library'
+- in 'TreeConnector-backend/treeconnector'
+  - because we'll make 'Wallet' on 'TreeConnector-backend/treeconnector'
 
 ```bash
 cd ..
@@ -23,14 +23,13 @@ node javascript/registerUser.js
 ### 3. Start Library Network
 
 ```bash
-./startLibrary.sh
+./startTreeconnector.sh
 ```
 
 ### 4. Start Server
 
-- You need to change ip
 
 ```bash
-node application/server.js
+npm start
 ```
 

@@ -1,0 +1,1 @@
+{"ast":null,"code":"let ROLE = 'no role';\nexport default ROLE;","map":{"version":3,"sources":["/media/jaeho/EXTSSD/gitlab/TreeConnector-Web/components/Role.js"],"names":["ROLE"],"mappings":"AAAA,IAAIA,IAAI,GAAG,SAAX;AACA,eAAeA,IAAf","sourcesContent":["let ROLE = 'no role';\nexport default ROLE;"]},"metadata":{},"sourceType":"module"}

@@ -9,10 +9,6 @@
     "static/development/_ssgManifest.js"
   ],
   "pages": {
-    "/": [
-      "static/runtime/webpack.js",
-      "static/runtime/main.js"
-    ],
     "/_app": [
       "static/runtime/webpack.js",
       "static/runtime/main.js"
@@ -24,15 +20,19 @@
     "/_polyfills": [
       "static/runtime/polyfills.js"
     ],
-    "/index": [
+    "/lookup": [
+      "static/runtime/webpack.js",
+      "static/runtime/main.js"
+    ],
+    "/main": [
+      "static/runtime/webpack.js",
+      "static/runtime/main.js"
+    ],
+    "/mytree": [
       "static/runtime/webpack.js",
       "static/runtime/main.js"
     ],
     "/therapisttreatment": [
-      "static/runtime/webpack.js",
-      "static/runtime/main.js"
-    ],
-    "/treeinfo": [
       "static/runtime/webpack.js",
       "static/runtime/main.js"
     ]

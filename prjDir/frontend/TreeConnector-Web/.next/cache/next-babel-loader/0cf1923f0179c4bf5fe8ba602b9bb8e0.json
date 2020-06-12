@@ -1,0 +1,1 @@
+{"ast":null,"code":"const ROLE = [''];\nexport default ROLE;","map":{"version":3,"sources":["/media/jaeho/EXTSSD/gitlab/blockchain3.0project/prjDir/frontend/TreeConnector-Web/components/Role.js"],"names":["ROLE"],"mappings":"AAAA,MAAMA,IAAI,GAAG,CAAC,EAAD,CAAb;AACA,eAAeA,IAAf","sourcesContent":["const ROLE = [''];\nexport default ROLE;"]},"metadata":{},"sourceType":"module"}

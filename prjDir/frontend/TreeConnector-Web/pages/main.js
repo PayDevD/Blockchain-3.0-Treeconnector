@@ -17,16 +17,27 @@ const Main = () => (
             {`
                 a {
                     color: white;
-                    background-color: green;
+                    background-color: rgb(163, 204, 163);
                     text-decoration: none;
-                    margin: 10em;
                     font-size: 5em;
+                    display: inline-block;
+                    padding: 2vw;
+                    paddingTop: 3vh;
+                    paddingBottom: 3vh;
+                    margin: 2vw;
+                },
+
+                div {
+                    padding-left: 18vw;
+                    padding-top: 15vh;
                 }
             `}
         </style>
-        <Link href='mytree'><a>내 나무 관리</a></Link><br />
-        <Link href='lookup'><a>나무 조회</a></Link><br />
-        <Link href={path}><a>나무 진료</a></Link>
+        <div>
+            <Link href='mytree'><a>내 나무 관리</a></Link>
+            <Link href='lookup'><a>나무 조회</a></Link>
+            <Link href={path}><a>나무 진료</a></Link>
+        </div>
     </Layout>
 )
 
